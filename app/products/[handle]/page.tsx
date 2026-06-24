@@ -45,9 +45,9 @@ export default async function ProductPage({ params }: Props) {
         {/* Product layout */}
         <section
           style={{
-            maxWidth: "1400px",
+            maxWidth: "1280px",
             margin: "0 auto",
-            padding: "24px 40px",
+            padding: "24px 32px",
             display: "grid",
             gridTemplateColumns: "1fr",
             gap: "48px",

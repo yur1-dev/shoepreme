@@ -171,18 +171,120 @@ export default function Navbar() {
         {/* Announcement bar */}
         <div
           style={{
-            background: "#e8a830",
-            color: "#0d1117",
-            textAlign: "center",
-            padding: "8px 16px",
-            fontSize: "10px",
-            fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            background: "#080b10",
+            color: "#e8a830",
+            overflow: "hidden",
+            height: "30px",
+            display: "flex",
+            alignItems: "center",
+            position: "relative",
+            borderBottom: "1px solid rgba(232,168,48,0.15)",
           }}
         >
-          Free shipping over ₱5,000 &nbsp;·&nbsp; 100% Authentic · JP · TW · US
-          Sourced
+          {/* Gradient fade edges */}
+          {/* Shimmer sweep */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(232,168,48,0.06) 50%, transparent 100%)",
+              animation: "announceSweep 3s ease-in-out infinite",
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: "80px",
+              background: "linear-gradient(90deg, #080b10, transparent)",
+              zIndex: 3,
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: "80px",
+              background: "linear-gradient(-90deg, #080b10, transparent)",
+              zIndex: 3,
+              pointerEvents: "none",
+            }}
+          />
+
+          <div className="ticker-track">
+            {[0, 1].map((dupe) => (
+              <div key={dupe} className="ticker-inner">
+                {[
+                  "Free Shipping over ₱5,000",
+                  "100% Authentic",
+                  "JP · TW · US Sourced",
+                  "Returns within 7 Days",
+                  "Pre-order Available",
+                  "Zero Fakes. Ever.",
+                ].map((text, i) => (
+                  <span key={i} className="ticker-item">
+                    <svg
+                      width="5"
+                      height="5"
+                      viewBox="0 0 5 5"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <rect
+                        x="0"
+                        y="0"
+                        width="5"
+                        height="5"
+                        fill="#e8a830"
+                        transform="rotate(45 2.5 2.5)"
+                      />
+                    </svg>
+                    <span className="ticker-text">{text}</span>
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <style>{`
+            .ticker-track {
+              display: flex;
+              width: max-content;
+              animation: tickerScroll 28s linear infinite;
+            }
+            .ticker-track:hover { animation-play-state: paused; }
+            .ticker-inner {
+              display: flex;
+              align-items: center;
+              flex-shrink: 0;
+            }
+            .ticker-item {
+              display: inline-flex;
+              align-items: center;
+              gap: 7px;
+              padding: 0 28px;
+              white-space: nowrap;
+            }
+            .ticker-text {
+              font-size: 9.5px;
+              font-weight: 700;
+              letter-spacing: 0.18em;
+              text-transform: uppercase;
+              color: rgba(232,168,48,0.75);
+            }
+            .ticker-item:hover .ticker-text { color: #e8a830; }
+            @keyframes tickerScroll {
+              from { transform: translateX(0); }
+              to   { transform: translateX(-50%); }
+            }
+          `}</style>
         </div>
 
         {/* Nav — transparent text-only at top, morphs into blurred pill on scroll */}
@@ -544,6 +646,10 @@ export default function Navbar() {
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
 
       <style>{`
+        @keyframes announceSweep {
+              0%   { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
         @media (min-width: 768px) {
           .md-nav-links { display: flex !important; }
           .hamburger-btn { display: none !important; }

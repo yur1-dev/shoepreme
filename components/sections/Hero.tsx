@@ -49,16 +49,16 @@ const FALLBACK: HeroProduct[] = [
   },
   {
     id: "03",
-    brand: "NEW BALANCE",
-    name: "REBEL V5",
-    sub: "Lightweight Trainer",
-    price: "₱6,550",
+    brand: "ADIDAS",
+    name: "ADIZERO PRIME X 2.0",
+    sub: "Elite Racing",
+    price: "₱14,950",
     tag: "IN STOCK",
-    handle: "products",
-    image: "/shoes/rebel-v5.png",
-    glow: "255,111,97",
-    tagColor: "#ff6f61",
-    features: ["Ultra Lightweight", "Snug Sock Fit", "Daily Trainer"],
+    handle: "adizero-prime-x-2-0-strung",
+    image: "/shoes/adizero-prime-x-strung.png",
+    glow: "255,160,50",
+    tagColor: "#ff9f1a",
+    features: ["STRUNG Upper", "Lightstrike Pro", "Carbon ENERGYRODS"],
   },
 ];
 
@@ -439,8 +439,8 @@ export default function Hero({
                       {p.name}
                     </span>
                     <span
-                      className="font-['Bebas_Neue'] tracking-[0.03em]"
-                      style={{ fontSize: "1.65rem", color: p.tagColor }}
+                      className="font-['Poppins'] font-semibold tracking-[-0.01em]"
+                      style={{ fontSize: "1.35rem", color: p.tagColor }}
                     >
                       {p.price}
                     </span>
@@ -524,7 +524,7 @@ export default function Hero({
           <div className="flex items-center gap-4">
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 no-underline font-mono font-black uppercase transition-all duration-200 hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 no-underline font-mono font-semibold uppercase transition-all duration-200 hover:-translate-y-0.5"
               style={{
                 background: "#e8a830",
                 color: "#0d1117",
