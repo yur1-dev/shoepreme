@@ -15,9 +15,9 @@ export default function ImageGallery({
       <div
         style={{
           width: "100%",
-          height: "calc(100vh - 280px)",
+          height: "clamp(280px, 55vw, 640px)",
           maxHeight: "640px",
-          minHeight: "300px",
+          minHeight: "280px",
           borderRadius: "20px",
           overflow: "hidden",
           background: "#1a2332",

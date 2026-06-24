@@ -47,15 +47,24 @@ export default async function ProductPage({ params }: Props) {
           style={{
             maxWidth: "1280px",
             margin: "0 auto",
-            padding: "24px 32px",
+            padding: "clamp(16px, 4vw, 32px)",
             display: "grid",
             gridTemplateColumns: "1fr",
-            gap: "48px",
+            gap: "clamp(24px, 4vw, 48px)",
           }}
           className="product-grid"
         >
           {/* Left — images */}
-          <div style={{ position: "sticky", top: "112px", alignSelf: "start" }}>
+          <div
+            style={{
+              position: "sticky",
+              top: "112px",
+              alignSelf: "start",
+              maxHeight: "clamp(320px, 60vw, 9999px)",
+              overflow: "hidden",
+            }}
+            className="gallery-wrap"
+          >
             <ImageGallery images={images} title={product.title} />
           </div>
 
@@ -267,6 +276,9 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <style>{`
+@media (max-width: 639px) {
+          .gallery-wrap { position: static !important; max-height: none !important; }
+        }
         @media (min-width: 900px) {
           .product-grid {
             grid-template-columns: 1fr 1fr !important;
