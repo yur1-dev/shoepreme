@@ -73,6 +73,14 @@ export default function Hero({
   const n = PRODUCTS.length;
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [spread, setSpread] = useState(200);
+
+  useEffect(() => {
+    const update = () => setSpread(Math.min(window.innerWidth * 0.18, 240));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     if (paused || n <= 1) return;
@@ -113,12 +121,13 @@ export default function Hero({
         aria-hidden="true"
       />
       <section
-        className="relative w-full bg-[#0d1117]"
+        className="hero-section relative w-full bg-[#0d1117] overflow-hidden"
         style={{
-          minHeight: "100vh",
+          height: "100dvh",
           display: "flex",
           flexDirection: "column",
-          paddingTop: "101px",
+          justifyContent: "space-between",
+          paddingTop: "clamp(64px, 10vh, 101px)",
         }}
       >
         {/* Noise overlay */}
@@ -134,7 +143,13 @@ export default function Hero({
         />
 
         {/* ─── HEADLINE ─── */}
-        <div className="relative z-10 shrink-0 flex flex-col items-center text-center pt-10 pb-8 px-6">
+        <div
+          className="relative z-10 shrink-0 flex flex-col items-center text-center px-6"
+          style={{
+            paddingTop: "clamp(24px, 4vh, 40px)",
+            paddingBottom: "clamp(16px, 2.5vh, 28px)",
+          }}
+        >
           {/* Kicker */}
           <div className="flex items-center gap-2 mb-3">
             <span className="w-[6px] h-[6px] rounded-full bg-[#e8a830] shrink-0 animate-[kDot_2s_ease-in-out_infinite]" />
@@ -149,7 +164,7 @@ export default function Hero({
           {/* H1 */}
           <h1
             className="font-['Bebas_Neue'] leading-none tracking-[0.02em] m-0"
-            style={{ fontSize: "clamp(2.8rem, 7vw, 5.5rem)" }}
+            style={{ fontSize: "clamp(1.9rem, 4.5vw, 3.5rem)" }}
           >
             <span className="text-[#f5f7f9]">BUILT FOR THE </span>
             <span
@@ -168,8 +183,8 @@ export default function Hero({
         all anchor to the true horizontal center of this container.
       */}
         <div
-          className="relative z-10 w-full shrink-0"
-          style={{ height: "clamp(420px, 58vh, 660px)" }}
+          className="relative z-10 w-full overflow-visible hero-stage"
+          style={{ minHeight: "240px", flex: "1 1 auto" }}
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
@@ -227,10 +242,10 @@ export default function Hero({
             <button
               onClick={() => go(active - 1)}
               aria-label="Previous"
-              className="absolute z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/55 cursor-pointer transition-all duration-200 hover:bg-white/10 hover:text-white"
+              className="nav-arrow nav-arrow-prev absolute z-30 flex items-center justify-center w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white/80 cursor-pointer transition-all duration-200 hover:bg-white/20 hover:text-white"
               style={{
                 top: "50%",
-                left: "clamp(12px, 3vw, 48px)",
+                left: "clamp(8px, 2vw, 48px)",
                 transform: "translateY(-50%)",
               }}
             >
@@ -265,23 +280,19 @@ export default function Hero({
             const sc = p.imgScale ?? 1;
             const tilt = p.rotate ?? (isActive ? 0 : dir * 3);
 
-            const cardW = "clamp(180px, 24vw, 320px)";
-            const spreadPx =
-              typeof window !== "undefined"
-                ? Math.min(window.innerWidth * 0.22, 240)
-                : 240;
+            const cardW = "clamp(200px, min(72vw, 44vh), 320px)";
 
             return (
               <button
                 key={`${p.handle}-${i}`}
                 aria-label={p.name}
                 onClick={() => go(i)}
-                className="absolute p-0 bg-transparent border-none cursor-pointer will-change-transform"
+                className={`absolute p-0 bg-transparent border-none cursor-pointer will-change-transform${!isActive ? " side-card" : ""}`}
                 style={{
-                  top: "44%",
+                  top: "50%",
                   left: "50%",
                   width: cardW,
-                  transform: `translate(-50%, -50%) translateX(${offset * 240}px) scale(${depth === 0 ? 1 : depth === 1 ? 0.72 : 0.5}) rotateY(${depth === 0 ? 0 : dir * (depth === 1 ? 28 : 40)}deg)`,
+                  transform: `translate(-50%, -50%) translateX(${offset * spread}px) scale(${depth === 0 ? 1 : depth === 1 ? 0.72 : 0.5}) rotateY(${depth === 0 ? 0 : dir * (depth === 1 ? 28 : 40)}deg)`,
                   opacity: depth === 0 ? 1 : depth === 1 ? 0.48 : 0.14,
                   filter:
                     depth === 0 ? "none" : `blur(${depth === 1 ? 1.5 : 3.5}px)`,
@@ -322,10 +333,10 @@ export default function Hero({
                 <div
                   className="absolute pointer-events-none flex items-center justify-center"
                   style={{
-                    top: "-18%",
+                    top: "-6%",
                     left: "-24%",
                     right: "-24%",
-                    bottom: "-18%",
+                    bottom: "-10%",
                     zIndex: 3,
                   }}
                 >
@@ -415,7 +426,7 @@ export default function Hero({
 
                 {/* Caption below card */}
                 <div
-                  className="mt-4 text-center"
+                  className="mt-4 text-center caption-block"
                   style={{
                     opacity: isActive ? 1 : 0,
                     transform: isActive ? "translateY(0)" : "translateY(6px)",
@@ -431,16 +442,19 @@ export default function Hero({
                   >
                     {p.brand}
                   </span>
-                  <div className="flex items-baseline justify-center gap-3">
+                  <div className="flex flex-col items-center gap-0.5">
                     <span
-                      className="font-['Bebas_Neue'] text-[#f5f7f9] tracking-[0.03em]"
-                      style={{ fontSize: "1.75rem" }}
+                      className="font-['Bebas_Neue'] text-[#f5f7f9] tracking-[0.03em] leading-none"
+                      style={{ fontSize: "clamp(1.2rem, 4vw, 1.75rem)" }}
                     >
                       {p.name}
                     </span>
                     <span
-                      className="font-['Poppins'] font-semibold tracking-[-0.01em]"
-                      style={{ fontSize: "1.35rem", color: p.tagColor }}
+                      className="font-['Poppins'] font-bold tracking-[-0.01em]"
+                      style={{
+                        fontSize: "clamp(0.9rem, 3vw, 1.2rem)",
+                        color: p.tagColor,
+                      }}
                     >
                       {p.price}
                     </span>
@@ -466,10 +480,10 @@ export default function Hero({
             <button
               onClick={() => go(active + 1)}
               aria-label="Next"
-              className="absolute z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/55 cursor-pointer transition-all duration-200 hover:bg-white/10 hover:text-white"
+              className="nav-arrow nav-arrow-next absolute z-30 flex items-center justify-center w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white/80 cursor-pointer transition-all duration-200 hover:bg-white/20 hover:text-white"
               style={{
                 top: "50%",
-                right: "clamp(12px, 3vw, 48px)",
+                right: "clamp(8px, 2vw, 48px)",
                 transform: "translateY(-50%)",
               }}
             >
@@ -491,31 +505,86 @@ export default function Hero({
           )}
         </div>
 
-        {/* ─── DOTS ─── */}
+        {/* ─── DOTS + MOBILE ARROWS ─── */}
         {n > 1 && (
-          <div className="relative z-10 flex justify-center items-center gap-2 shrink-0 pt-8 pb-4">
-            {PRODUCTS.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => go(i)}
-                aria-label={`Slide ${i + 1}`}
-                className="rounded-full border-none p-0 cursor-pointer transition-all duration-200"
-                style={{
-                  width: i === active ? "20px" : "6px",
-                  height: "6px",
-                  background:
-                    i === active ? "#e8a830" : "rgba(255,255,255,0.15)",
-                  borderRadius: i === active ? "3px" : "50%",
-                }}
-              />
-            ))}
+          <div
+            className="relative z-10 flex justify-center items-center shrink-0"
+            style={{
+              paddingTop: "clamp(16px, 2.5vh, 24px)",
+              paddingBottom: "clamp(12px, 2vh, 20px)",
+              gap: "16px",
+            }}
+          >
+            <button
+              onClick={() => go(active - 1)}
+              aria-label="Previous"
+              className="mobile-nav-arrow flex items-center justify-center w-9 h-9 rounded-full bg-white/10 border border-white/20 text-white/80 cursor-pointer transition-all duration-200 hover:bg-white/20 hover:text-white sm:hidden"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path
+                  d="M15 6l-6 6 6 6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              {PRODUCTS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => go(i)}
+                  aria-label={`Slide ${i + 1}`}
+                  className="rounded-full border-none p-0 cursor-pointer transition-all duration-200"
+                  style={{
+                    width: i === active ? "20px" : "6px",
+                    height: "6px",
+                    background:
+                      i === active ? "#e8a830" : "rgba(255,255,255,0.15)",
+                    borderRadius: i === active ? "3px" : "50%",
+                  }}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => go(active + 1)}
+              aria-label="Next"
+              className="mobile-nav-arrow flex items-center justify-center w-9 h-9 rounded-full bg-white/10 border border-white/20 text-white/80 cursor-pointer transition-all duration-200 hover:bg-white/20 hover:text-white sm:hidden"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path
+                  d="M9 6l6 6-6 6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         )}
 
         {/* ─── BOTTOM CTA ─── */}
-        <div className="relative z-10 flex flex-col items-center text-center shrink-0 px-6 pt-5 pb-14">
+        <div
+          className="relative z-10 flex flex-col items-center text-center shrink-0 px-6"
+          style={{
+            paddingTop: "clamp(16px, 2vh, 24px)",
+            paddingBottom: "clamp(32px, 5vh, 56px)",
+          }}
+        >
           <p
-            className="font-mono leading-relaxed text-white/28 mb-6 max-w-[400px]"
+            className="font-mono leading-relaxed text-white/28 mb-2 max-w-[400px]"
             style={{ fontSize: "11.5px", letterSpacing: "0.02em" }}
           >
             Authentic Nike, Adidas, ASICS, Brooks &amp; Hoka — sourced direct.
@@ -591,9 +660,15 @@ export default function Hero({
           transform: translateX(-130%);
           pointer-events: none;
         }
-        .active-plate::before {
+.active-plate::before {
           animation: sheenSweep 4.5s ease-in-out infinite;
         }
+@media (max-width: 639px) {
+  .side-card { opacity: 0 !important; pointer-events: none !important; }
+  .hero-stage { flex: none !important; height: min(68vw, 300px) !important; }
+  .nav-arrow { display: none !important; }
+  .caption-block { margin-top: 12px !important; }
+}
       `}</style>
       </section>
     </>

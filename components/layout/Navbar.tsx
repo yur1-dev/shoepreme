@@ -292,28 +292,28 @@ export default function Navbar() {
           style={{
             display: "flex",
             justifyContent: "center",
-            padding: scrolled ? "12px 32px" : "0px",
-            transition: "padding 0.4s ease",
+            padding: "0",
           }}
         >
           <nav
+            className="nav-grid"
             style={{
               width: "100%",
               maxWidth: "1280px",
               background: scrolled ? "rgba(13,17,23,0.6)" : "transparent",
               backdropFilter: scrolled ? "blur(20px)" : "none",
               WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
-              border: scrolled ? "1px solid rgba(255,255,255,0.08)" : "none",
+              border: "none",
+              borderBottom: scrolled
+                ? "1px solid rgba(255,255,255,0.06)"
+                : "none",
               borderRadius: scrolled ? "20px" : "0px",
               padding: "0 32px",
               height: "64px",
-              display: "grid",
-              gridTemplateColumns: "1fr auto 1fr",
-              columnGap: "24px",
               alignItems: "center",
               boxShadow: scrolled ? "0 8px 32px rgba(0,0,0,0.4)" : "none",
               transition:
-                "background 0.4s ease, backdrop-filter 0.4s ease, border-radius 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease",
+                "background 0.4s ease, backdrop-filter 0.4s ease, box-shadow 0.4s ease",
             }}
           >
             {/* Logo — sits in column 1, pinned left regardless of icon-column width */}
@@ -336,6 +336,7 @@ export default function Navbar() {
                 style={{ objectFit: "contain" }}
               />
               <span
+                className="hidden sm:inline"
                 style={{
                   fontFamily: "Bebas Neue, sans-serif",
                   color: "#f5f7f9",
@@ -484,6 +485,7 @@ export default function Navbar() {
                 display: "flex",
                 alignItems: "center",
                 gap: "2px",
+                marginRight: "-10px",
               }}
             >
               <button
@@ -499,7 +501,7 @@ export default function Navbar() {
                   borderRadius: "9999px",
                   cursor: "pointer",
                 }}
-                className="icon-btn"
+                className="icon-btn search-btn"
               >
                 <svg
                   width="16"
@@ -650,7 +652,16 @@ export default function Navbar() {
               0%   { transform: translateX(-100%); }
               100% { transform: translateX(100%); }
             }
+.nav-grid {
+          display: flex;
+          justify-content: space-between;
+        }
         @media (min-width: 768px) {
+          .nav-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            column-gap: 24px;
+          }
           .md-nav-links { display: flex !important; }
           .hamburger-btn { display: none !important; }
         }
