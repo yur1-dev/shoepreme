@@ -29,8 +29,7 @@ const PRODUCT_FRAGMENT = `
         node {
           id
           title
-          availableForSale
-          quantityAvailable
+availableForSale
           price { amount currencyCode }
           compareAtPrice { amount currencyCode }
           selectedOptions { name value }

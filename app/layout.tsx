@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
-import CartDrawer from "@/components/ui/CartDrawer";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "Shoepreme PH — Authentic Running & Basketball Shoes",
@@ -37,10 +36,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

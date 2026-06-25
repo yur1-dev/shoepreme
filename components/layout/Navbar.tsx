@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/context/CartContext";
+import { useSession } from "next-auth/react";
 import SearchModal from "@/components/SearchModal";
 
 type CategoryLabel =
@@ -37,6 +38,7 @@ const NAV_LINKS: {
   { label: "Pre-order", href: "/collections/pre-order" },
   { label: "Sale", href: "/collections/sale", accent: true },
   { label: "New In Stock", href: "/collections/new", accent: true },
+  { label: "The Crew", href: "/crew", accent: true },
 ];
 
 const CATEGORY_ICONS: Record<CategoryLabel, React.ReactElement> = {
@@ -147,6 +149,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { totalQuantity, openCart } = useCart();
+  const { data: session } = useSession();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -488,6 +491,35 @@ export default function Navbar() {
                 marginRight: "-10px",
               }}
             >
+              <Link
+                href={session ? "/account" : "/account/login"}
+                aria-label="Account"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: session ? "#e8a830" : "rgba(245,247,249,0.55)",
+                  padding: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  borderRadius: "9999px",
+                  cursor: "pointer",
+                  textDecoration: "none",
+                }}
+                className="icon-btn"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <circle cx="12" cy="7" r="4" />
+                  <path strokeLinecap="round" d="M4 21v-1a8 8 0 0116 0v1" />
+                </svg>
+              </Link>
+
               <button
                 onClick={() => setSearchOpen(true)}
                 aria-label="Search"
