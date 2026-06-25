@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/account";
-
   const [isPending, setIsPending] = useState(false);
 
   async function handleContinue() {
@@ -18,6 +17,61 @@ export default function LoginPage() {
     await signIn("shopify", { callbackUrl });
   }
 
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "16px",
+        padding: "clamp(24px, 5vw, 36px)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px",
+      }}
+    >
+      <p
+        style={{
+          fontFamily: "monospace",
+          fontSize: "10px",
+          color: "rgba(245,247,249,0.4)",
+          letterSpacing: "0.04em",
+          lineHeight: 1.6,
+          margin: 0,
+        }}
+      >
+        We'll send you to a secure Shopify sign-in page — enter a code or use
+        Google, whichever's faster.
+      </p>
+
+      <button
+        onClick={handleContinue}
+        disabled={isPending}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          background: isPending ? "rgba(232,168,48,0.5)" : "#e8a830",
+          color: "#0d1117",
+          fontFamily: "monospace",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.22em",
+          textTransform: "uppercase",
+          padding: "14px 24px",
+          borderRadius: "8px",
+          border: "none",
+          cursor: isPending ? "not-allowed" : "pointer",
+          width: "100%",
+        }}
+      >
+        {isPending ? "Redirecting..." : "Continue"}
+      </button>
+    </div>
+  );
+}
+
+export default function LoginPage() {
   return (
     <main style={{ minHeight: "100vh", background: "#0d1117" }}>
       <Navbar />
@@ -80,56 +134,9 @@ export default function LoginPage() {
             </h1>
           </div>
 
-          <div
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: "16px",
-              padding: "clamp(24px, 5vw, 36px)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "20px",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "monospace",
-                fontSize: "10px",
-                color: "rgba(245,247,249,0.4)",
-                letterSpacing: "0.04em",
-                lineHeight: 1.6,
-                margin: 0,
-              }}
-            >
-              We'll send you to a secure Shopify sign-in page — enter a code or
-              use Google, whichever's faster.
-            </p>
-
-            <button
-              onClick={handleContinue}
-              disabled={isPending}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                background: isPending ? "rgba(232,168,48,0.5)" : "#e8a830",
-                color: "#0d1117",
-                fontFamily: "monospace",
-                fontSize: "10px",
-                fontWeight: 700,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                padding: "14px 24px",
-                borderRadius: "8px",
-                border: "none",
-                cursor: isPending ? "not-allowed" : "pointer",
-                width: "100%",
-              }}
-            >
-              {isPending ? "Redirecting..." : "Continue"}
-            </button>
-          </div>
+          <Suspense fallback={<div style={{ height: "120px" }} />}>
+            <LoginForm />
+          </Suspense>
 
           <p
             style={{
