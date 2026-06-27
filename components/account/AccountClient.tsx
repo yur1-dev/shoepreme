@@ -18,182 +18,6 @@ interface AccountClientProps {
   SignOutButton: React.ReactNode;
 }
 
-// ─── Mock Orders ──────────────────────────────────────────────────────────────
-const MOCK_ORDERS = [
-  {
-    id: "gid://shopify/Order/1001",
-    orderNumber: 1001,
-    processedAt: "2025-05-12T10:30:00Z",
-    financialStatus: "PAID",
-    fulfillmentStatus: "FULFILLED",
-    currentTotalPrice: { amount: "8950.00", currencyCode: "PHP" },
-    subtotalPrice: { amount: "8500.00", currencyCode: "PHP" },
-    totalShippingPrice: { amount: "450.00", currencyCode: "PHP" },
-    shippingAddress: {
-      firstName: "Marc",
-      lastName: "Yuri",
-      address1: "123 Rizal St.",
-      address2: "Brgy. Poblacion",
-      city: "Koronadal",
-      province: "South Cotabato",
-      zip: "9506",
-      country: "Philippines",
-      phone: "+639123456789",
-    },
-    lineItems: {
-      edges: [
-        {
-          node: {
-            title: "Nike Air Jordan 1 Retro High OG",
-            quantity: 1,
-            variant: {
-              image: {
-                url: "https://placehold.co/120x120/1a2332/4a7fa5?text=AJ1",
-              },
-              selectedOptions: [
-                { name: "Size", value: "US 10" },
-                { name: "Color", value: "Chicago" },
-              ],
-              price: { amount: "7500.00", currencyCode: "PHP" },
-            },
-          },
-        },
-        {
-          node: {
-            title: "Nike Dunk Low Retro",
-            quantity: 1,
-            variant: {
-              image: {
-                url: "https://placehold.co/120x120/1a2332/4a7fa5?text=DUNK",
-              },
-              selectedOptions: [
-                { name: "Size", value: "US 10" },
-                { name: "Color", value: "Panda" },
-              ],
-              price: { amount: "1000.00", currencyCode: "PHP" },
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    id: "gid://shopify/Order/1002",
-    orderNumber: 1002,
-    processedAt: "2025-06-01T14:20:00Z",
-    financialStatus: "PENDING",
-    fulfillmentStatus: "UNFULFILLED",
-    currentTotalPrice: { amount: "12500.00", currencyCode: "PHP" },
-    subtotalPrice: { amount: "12050.00", currencyCode: "PHP" },
-    totalShippingPrice: { amount: "450.00", currencyCode: "PHP" },
-    shippingAddress: {
-      firstName: "Marc",
-      lastName: "Yuri",
-      address1: "456 Mabini Ave.",
-      address2: null,
-      city: "General Santos",
-      province: "South Cotabato",
-      zip: "9500",
-      country: "Philippines",
-      phone: "+639123456789",
-    },
-    lineItems: {
-      edges: [
-        {
-          node: {
-            title: "Adidas Yeezy Boost 350 V2",
-            quantity: 1,
-            variant: {
-              image: {
-                url: "https://placehold.co/120x120/1a2332/e8a830?text=YEEZY",
-              },
-              selectedOptions: [
-                { name: "Size", value: "US 9.5" },
-                { name: "Color", value: "Zebra" },
-              ],
-              price: { amount: "12050.00", currencyCode: "PHP" },
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    id: "gid://shopify/Order/1003",
-    orderNumber: 1003,
-    processedAt: "2025-06-20T09:00:00Z",
-    financialStatus: "REFUNDED",
-    fulfillmentStatus: "UNFULFILLED",
-    currentTotalPrice: { amount: "0.00", currencyCode: "PHP" },
-    subtotalPrice: { amount: "5500.00", currencyCode: "PHP" },
-    totalShippingPrice: { amount: "450.00", currencyCode: "PHP" },
-    shippingAddress: {
-      firstName: "Marc",
-      lastName: "Yuri",
-      address1: "789 Del Pilar St.",
-      address2: null,
-      city: "Koronadal",
-      province: "South Cotabato",
-      zip: "9506",
-      country: "Philippines",
-      phone: "+639123456789",
-    },
-    lineItems: {
-      edges: [
-        {
-          node: {
-            title: "New Balance 550",
-            quantity: 1,
-            variant: {
-              image: {
-                url: "https://placehold.co/120x120/1a2332/4a7fa5?text=NB550",
-              },
-              selectedOptions: [
-                { name: "Size", value: "US 11" },
-                { name: "Color", value: "White/Green" },
-              ],
-              price: { amount: "5500.00", currencyCode: "PHP" },
-            },
-          },
-        },
-      ],
-    },
-  },
-];
-
-// ─── Mock Addresses ───────────────────────────────────────────────────────────
-const MOCK_ADDRESSES = [
-  {
-    id: "addr_1",
-    firstName: "Marc",
-    lastName: "Yuri",
-    address1: "123 Rizal St.",
-    address2: "Brgy. Poblacion",
-    city: "Koronadal",
-    province: "South Cotabato",
-    zip: "9506",
-    country: "Philippines",
-    phone: "+639123456789",
-    isDefault: true,
-  },
-  {
-    id: "addr_2",
-    firstName: "Marc",
-    lastName: "Yuri",
-    address1: "456 Mabini Ave.",
-    address2: "",
-    city: "General Santos",
-    province: "South Cotabato",
-    zip: "9500",
-    country: "Philippines",
-    phone: "+639123456789",
-    isDefault: false,
-  },
-];
-
-type Address = (typeof MOCK_ADDRESSES)[number];
-type Order = (typeof MOCK_ORDERS)[number];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
   PAID: "#4ade80",
@@ -223,6 +47,49 @@ function formatDate(iso: string, long = false) {
     month: long ? "long" : "short",
     day: "numeric",
   });
+}
+
+// ─── Shared types (now describing API data instead of mock data) ─────────────
+interface MoneyV2 {
+  amount: string;
+  currencyCode: string;
+}
+
+interface Address {
+  id: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  address2?: string | null;
+  city: string;
+  province: string;
+  zip: string;
+  country: string;
+  phone: string;
+  isDefault: boolean;
+}
+
+interface LineItemNode {
+  title: string;
+  quantity: number;
+  variant?: {
+    image?: { url: string };
+    selectedOptions?: { name: string; value: string }[];
+    price?: MoneyV2;
+  };
+}
+
+interface Order {
+  id: string;
+  orderNumber: number;
+  processedAt: string;
+  financialStatus: string;
+  fulfillmentStatus: string;
+  currentTotalPrice: MoneyV2;
+  subtotalPrice: MoneyV2;
+  totalShippingPrice: MoneyV2;
+  shippingAddress?: Address | null;
+  lineItems: { edges: { node: LineItemNode }[] };
 }
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
@@ -360,19 +227,49 @@ const ORDER_TABS: {
 
 // ─── Order List ───────────────────────────────────────────────────────────────
 function OrdersSection({
+  orders,
+  loading,
   onSelect,
   activeTab,
   setActiveTab,
 }: {
+  orders: Order[];
+  loading: boolean;
   onSelect: (order: Order) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }) {
-  const allOrders = MOCK_ORDERS;
+  const allOrders = orders;
   const tab = ORDER_TABS.find((t) => t.key === activeTab)!;
-  const orders = allOrders.filter(tab.filter);
+  const filteredOrders = allOrders.filter(tab.filter);
 
-  if (orders.length === 0 && allOrders.length === 0) {
+  if (loading) {
+    return (
+      <div
+        style={{
+          background: "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: "16px",
+          padding: "56px 24px",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "rgba(245,247,249,0.3)",
+            letterSpacing: "0.08em",
+            margin: 0,
+          }}
+        >
+          Loading orders…
+        </p>
+      </div>
+    );
+  }
+
+  if (filteredOrders.length === 0 && allOrders.length === 0) {
     return (
       <div
         style={{
@@ -485,7 +382,7 @@ function OrdersSection({
       </div>
 
       {/* ── Empty filtered state ── */}
-      {orders.length === 0 && (
+      {filteredOrders.length === 0 && (
         <div
           style={{
             background: "rgba(255,255,255,0.02)",
@@ -522,7 +419,7 @@ function OrdersSection({
 
       {/* ── Order rows ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {orders.map((order) => {
+        {filteredOrders.map((order) => {
           const items = order.lineItems.edges.map((e) => e.node);
           const firstImage = items[0]?.variant?.image?.url;
           return (
@@ -1350,8 +1247,9 @@ function AddressFormDrawer({
 }
 
 // ─── Addresses Section ────────────────────────────────────────────────────────
-function AddressesSection() {
-  const [addresses, setAddresses] = useState(MOCK_ADDRESSES);
+function AddressesSection({ customerId }: { customerId: string }) {
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingAddress, setEditingAddress] = useState<
     Address | null | undefined
   >(undefined);
@@ -1361,26 +1259,94 @@ function AddressesSection() {
     setMounted(true);
   }, []);
 
-  function handleSave(data: Omit<Address, "id" | "isDefault">) {
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/account-api/addresses?customerId=${encodeURIComponent(customerId)}`,
+        );
+        const data = await res.json();
+        if (!cancelled) setAddresses(data.addresses ?? []);
+      } catch (err) {
+        console.error("Failed to load addresses", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
+  async function handleSave(data: Omit<Address, "id" | "isDefault">) {
     if (editingAddress === null) {
-      setAddresses((prev) => [
-        ...prev,
-        { ...data, id: `addr_${Date.now()}`, isDefault: prev.length === 0 },
-      ]);
+      // Creating a new address
+      try {
+        const res = await fetch("/api/account-api/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerId, ...data }),
+        });
+        const result = await res.json();
+        if (res.ok && result.address) {
+          setAddresses((prev) => [...prev, result.address]);
+        }
+      } catch (err) {
+        console.error("Failed to create address", err);
+      }
     } else if (editingAddress) {
-      setAddresses((prev) =>
-        prev.map((a) => (a.id === editingAddress.id ? { ...a, ...data } : a)),
-      );
+      // Editing an existing address
+      try {
+        const res = await fetch(`/api/account-api/addresses/${editingAddress.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (res.ok && result.address) {
+          setAddresses((prev) =>
+            prev.map((a) => (a.id === editingAddress.id ? result.address : a)),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to update address", err);
+      }
     }
   }
 
-  function handleDelete(id: string) {
-    setAddresses((prev) => {
-      const filtered = prev.filter((a) => a.id !== id);
-      if (filtered.length > 0 && !filtered.some((a) => a.isDefault))
-        filtered[0].isDefault = true;
-      return filtered;
-    });
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/account-api/addresses/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setAddresses((prev) => {
+          const filtered = prev.filter((a) => a.id !== id);
+          // Mirror the promotion logic the server already applied, so the
+          // UI doesn't flash a state with no default address.
+          if (filtered.length > 0 && !filtered.some((a) => a.isDefault)) {
+            filtered[0] = { ...filtered[0], isDefault: true };
+          }
+          return filtered;
+        });
+      }
+    } catch (err) {
+      console.error("Failed to delete address", err);
+    }
+  }
+
+  async function handleSetDefault(id: string) {
+    setAddresses((prev) =>
+      prev.map((a) => ({ ...a, isDefault: a.id === id })),
+    );
+    try {
+      await fetch(`/api/account-api/addresses/${id}/default`, { method: "POST" });
+    } catch (err) {
+      console.error("Failed to set default address", err);
+    }
   }
 
   return (
@@ -1419,7 +1385,29 @@ function AddressesSection() {
           Add Address
         </button>
       </div>
-      {addresses.length === 0 ? (
+      {loading ? (
+        <div
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "16px",
+            padding: "56px 24px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "monospace",
+              fontSize: "10px",
+              color: "rgba(245,247,249,0.3)",
+              letterSpacing: "0.08em",
+              margin: 0,
+            }}
+          >
+            Loading addresses…
+          </p>
+        </div>
+      ) : addresses.length === 0 ? (
         <div
           style={{
             background: "rgba(255,255,255,0.02)",
@@ -1587,14 +1575,7 @@ function AddressesSection() {
               >
                 {!addr.isDefault && (
                   <button
-                    onClick={() =>
-                      setAddresses((prev) =>
-                        prev.map((a) => ({
-                          ...a,
-                          isDefault: a.id === addr.id,
-                        })),
-                      )
-                    }
+                    onClick={() => handleSetDefault(addr.id)}
                     style={{
                       flex: 1,
                       padding: "8px",
@@ -1807,13 +1788,30 @@ function AddressesSection() {
 }
 
 // ─── Profile Section ──────────────────────────────────────────────────────────
-function ProfileSection({ customer }: { customer: CustomerData }) {
+function ProfileSection({
+  customer,
+  customerId,
+  onCustomerUpdate,
+}: {
+  customer: CustomerData;
+  customerId: string;
+  onCustomerUpdate: (updated: CustomerData) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     displayName: customer.displayName,
     phone: customer.phone ?? "",
   });
+
+  // Keep the form in sync if the parent refreshes customer data (e.g. after
+  // the initial fetch resolves with real values from MongoDB).
+  useEffect(() => {
+    if (!editing) {
+      setForm({ displayName: customer.displayName, phone: customer.phone ?? "" });
+    }
+  }, [customer.displayName, customer.phone, editing]);
 
   const inputStyle = {
     width: "100%",
@@ -1840,11 +1838,30 @@ function ProfileSection({ customer }: { customer: CustomerData }) {
     marginBottom: "6px",
   };
 
-  function handleSave() {
-    // wire to customerUpdate mutation when backend is ready
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/account-api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId,
+          displayName: form.displayName,
+          phone: form.phone,
+        }),
+      });
+      const result = await res.json();
+      if (res.ok && result.customer) {
+        onCustomerUpdate(result.customer);
+        setEditing(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch (err) {
+      console.error("Failed to update profile", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleCancel() {
@@ -2012,6 +2029,7 @@ function ProfileSection({ customer }: { customer: CustomerData }) {
           <div style={{ display: "flex", gap: "10px", paddingTop: "4px" }}>
             <button
               onClick={handleCancel}
+              disabled={saving}
               style={{
                 flex: 1,
                 padding: "12px",
@@ -2024,13 +2042,15 @@ function ProfileSection({ customer }: { customer: CustomerData }) {
                 fontWeight: 700,
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
-                cursor: "pointer",
+                cursor: saving ? "default" : "pointer",
+                opacity: saving ? 0.6 : 1,
               }}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
+              disabled={saving}
               style={{
                 flex: 2,
                 padding: "12px",
@@ -2043,10 +2063,11 @@ function ProfileSection({ customer }: { customer: CustomerData }) {
                 fontWeight: 700,
                 letterSpacing: "0.2em",
                 textTransform: "uppercase",
-                cursor: "pointer",
+                cursor: saving ? "default" : "pointer",
+                opacity: saving ? 0.6 : 1,
               }}
             >
-              Save Changes
+              {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </div>
@@ -2189,11 +2210,19 @@ function ProfileSection({ customer }: { customer: CustomerData }) {
 }
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
+interface AccountClientPropsExtended extends AccountClientProps {
+  customerId: string;
+}
+
 export default function AccountClient({
   customer,
+  customerId,
   SignOutButton,
-}: AccountClientProps) {
+}: AccountClientPropsExtended) {
   const [activeSection, setActiveSection] = useState<Section>("orders");
+  const [liveCustomer, setLiveCustomer] = useState<CustomerData>(customer);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState("all");
   const [mobileOrdersView, setMobileOrdersView] = useState(false);
@@ -2204,6 +2233,29 @@ export default function AccountClient({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch orders for this customer once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setOrdersLoading(true);
+      try {
+        const res = await fetch(
+          `/api/account-api/orders?customerId=${encodeURIComponent(customerId)}`,
+        );
+        const data = await res.json();
+        if (!cancelled) setOrders(data.orders ?? []);
+      } catch (err) {
+        console.error("Failed to load orders", err);
+      } finally {
+        if (!cancelled) setOrdersLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
   const sectionTitles: Record<Section, string> = {
     orders: selectedOrder
@@ -2273,7 +2325,7 @@ export default function AccountClient({
                 color: "#e8a830",
               }}
             >
-              {customer.displayName.charAt(0).toUpperCase()}
+              {liveCustomer.displayName.charAt(0).toUpperCase()}
             </span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -2286,7 +2338,7 @@ export default function AccountClient({
                 margin: "0 0 2px",
               }}
             >
-              {customer.displayName}
+              {liveCustomer.displayName}
             </p>
             <p
               style={{
@@ -2300,7 +2352,7 @@ export default function AccountClient({
                 whiteSpace: "nowrap",
               }}
             >
-              {customer.email}
+              {liveCustomer.email}
             </p>
           </div>
           <div style={{ flexShrink: 0 }}>{SignOutButton}</div>
@@ -2409,7 +2461,7 @@ export default function AccountClient({
                     color: "#e8a830",
                   }}
                 >
-                  {customer.displayName.charAt(0).toUpperCase()}
+                  {liveCustomer.displayName.charAt(0).toUpperCase()}
                 </span>
               </div>
               <p
@@ -2421,7 +2473,7 @@ export default function AccountClient({
                   margin: "0 0 2px",
                 }}
               >
-                {customer.displayName}
+                {liveCustomer.displayName}
               </p>
               <p
                 style={{
@@ -2433,7 +2485,7 @@ export default function AccountClient({
                   wordBreak: "break-all",
                 }}
               >
-                {customer.email}
+                {liveCustomer.email}
               </p>
             </div>
 
@@ -2653,6 +2705,8 @@ export default function AccountClient({
             >
               {activeSection === "orders" && !selectedOrder && (
                 <OrdersSection
+                  orders={orders}
+                  loading={ordersLoading}
                   onSelect={setSelectedOrder}
                   activeTab={activeOrderTab}
                   setActiveTab={setActiveOrderTab}
@@ -2662,9 +2716,15 @@ export default function AccountClient({
                 <OrderDetail order={selectedOrder} />
               )}
             </div>
-            {activeSection === "addresses" && <AddressesSection />}
+            {activeSection === "addresses" && (
+              <AddressesSection customerId={customerId} />
+            )}
             {activeSection === "profile" && (
-              <ProfileSection customer={customer} />
+              <ProfileSection
+                customer={liveCustomer}
+                customerId={customerId}
+                onCustomerUpdate={(updated) => setLiveCustomer(updated)}
+              />
             )}
           </main>
         </div>
@@ -2765,7 +2825,7 @@ export default function AccountClient({
                 </svg>
               ),
               tab: "to-pay",
-              count: MOCK_ORDERS.filter((o) => o.financialStatus === "PENDING")
+              count: orders.filter((o) => o.financialStatus === "PENDING")
                 .length,
             },
             {
@@ -2784,7 +2844,7 @@ export default function AccountClient({
                 </svg>
               ),
               tab: "to-ship",
-              count: MOCK_ORDERS.filter(
+              count: orders.filter(
                 (o) =>
                   o.financialStatus === "PAID" &&
                   o.fulfillmentStatus === "UNFULFILLED",
@@ -2807,7 +2867,7 @@ export default function AccountClient({
                 </svg>
               ),
               tab: "to-receive",
-              count: MOCK_ORDERS.filter(
+              count: orders.filter(
                 (o) =>
                   o.fulfillmentStatus === "FULFILLED" &&
                   o.financialStatus === "PAID",
@@ -2848,7 +2908,7 @@ export default function AccountClient({
                 </svg>
               ),
               tab: "cancelled",
-              count: MOCK_ORDERS.filter((o) => o.financialStatus === "REFUNDED")
+              count: orders.filter((o) => o.financialStatus === "REFUNDED")
                 .length,
             },
           ].map((item) => (
@@ -3034,7 +3094,7 @@ export default function AccountClient({
                   }}
                 >
                   {ORDER_TABS.map((t) => {
-                    const count = MOCK_ORDERS.filter(t.filter).length;
+                    const count = orders.filter(t.filter).length;
                     const isActive = activeOrderTab === t.key;
                     return (
                       <button
@@ -3103,7 +3163,22 @@ export default function AccountClient({
                     const tab = ORDER_TABS.find(
                       (t) => t.key === activeOrderTab,
                     )!;
-                    const filtered = MOCK_ORDERS.filter(tab.filter);
+                    const filtered = orders.filter(tab.filter);
+                    if (ordersLoading)
+                      return (
+                        <div style={{ padding: "60px 0", textAlign: "center" }}>
+                          <p
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: "10px",
+                              color: "rgba(245,247,249,0.3)",
+                              margin: 0,
+                            }}
+                          >
+                            Loading orders…
+                          </p>
+                        </div>
+                      );
                     if (filtered.length === 0)
                       return (
                         <div style={{ padding: "60px 0", textAlign: "center" }}>

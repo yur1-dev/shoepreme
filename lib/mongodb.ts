@@ -1,30 +1,43 @@
 // lib/mongodb.ts
-import { MongoClient } from "mongodb";
+import mongoose from "mongoose";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("Add MONGODB_URI to your .env.local");
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  throw new Error("Please define the MONGODB_URI environment variable in .env.local");
 }
 
-const uri = process.env.MONGODB_URI;
-const options = {};
+// Global mongoose cache
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoose: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  } | undefined;
+}
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+const cached = global._mongoose ?? {
+  conn: null,
+  promise: null,
+};
 
-if (process.env.NODE_ENV === "development") {
-  // In dev, Next.js hot-reloads modules — without this, every reload would
-  // open a brand new connection and eventually exhaust your Atlas M0 limit.
-  const globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>;
-  };
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
+if (!global._mongoose) {
+  global._mongoose = cached;
+}
+
+export async function connectToDatabase(): Promise<typeof mongoose> {
+  if (cached.conn) {
+    return cached.conn;
   }
-  clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
-}
 
-export default clientPromise;
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI as string, opts);
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
