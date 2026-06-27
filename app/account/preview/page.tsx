@@ -22,13 +22,22 @@ export default async function AccountPreview() {
     "Crew";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0d1117", position: "relative" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0d1117",
+        position: "relative",
+      }}
+    >
       <div
         style={{
           position: "fixed",
-          top: 0, left: 0, right: 0,
+          top: 0,
+          left: 0,
+          right: 0,
           height: "400px",
-          background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,168,48,0.06) 0%, transparent 70%)",
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,168,48,0.06) 0%, transparent 70%)",
           pointerEvents: "none",
           zIndex: 0,
         }}
