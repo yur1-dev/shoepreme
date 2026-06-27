@@ -45,3 +45,52 @@ export async function updateCustomerPassword(
   );
   return !data?.data?.customerUpdate?.userErrors?.length;
 }
+
+export async function getOrders(first = 20) {
+  const data = await adminFetch(
+    `
+    query getOrders($first: Int!) {
+      orders(first: $first, sortKey: CREATED_AT, reverse: true) {
+        edges {
+          node {
+            id
+            name
+            createdAt
+            displayFinancialStatus
+            displayFulfillmentStatus
+            customer {
+              displayName
+              email
+            }
+            totalPriceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+            }
+            lineItems(first: 5) {
+              edges {
+                node {
+                  title
+                  quantity
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `,
+    { first },
+  );
+
+  if (data.errors) {
+    console.error(
+      "Shopify orders query error:",
+      JSON.stringify(data.errors, null, 2),
+    );
+    return [];
+  }
+
+  return data?.data?.orders?.edges?.map((e: any) => e.node) ?? [];
+}
