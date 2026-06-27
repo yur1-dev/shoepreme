@@ -651,26 +651,70 @@ export default function Navbar() {
               boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
             }}
           >
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  display: "block",
-                  color: item.accent ? "#e8a830" : "rgba(245,247,249,0.75)",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  textDecoration: "none",
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((item) =>
+              item.children ? (
+                <div key={item.label}>
+                  <p
+                    style={{
+                      color: "rgba(245,247,249,0.35)",
+                      fontSize: "9px",
+                      fontWeight: 800,
+                      letterSpacing: "0.2em",
+                      textTransform: "uppercase",
+                      padding: "14px 0 8px",
+                      margin: 0,
+                      borderBottom: "1px solid rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    Shop by Category
+                  </p>
+                  {item.children.map((child) => (
+                    <Link
+                      key={child.label}
+                      href={child.href}
+                      onClick={() => setMenuOpen(false)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        color: "rgba(245,247,249,0.65)",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        padding: "11px 4px",
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <span style={{ color: "#4a7fa5", display: "flex" }}>
+                        {CATEGORY_ICONS[child.label]}
+                      </span>
+                      {child.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    display: "block",
+                    color: item.accent ? "#e8a830" : "rgba(245,247,249,0.75)",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    padding: "12px 0",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                    textDecoration: "none",
+                  }}
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
           </div>
         )}
       </div>

@@ -359,8 +359,15 @@ const ORDER_TABS: {
 ];
 
 // ─── Order List ───────────────────────────────────────────────────────────────
-function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
-  const [activeTab, setActiveTab] = useState("all");
+function OrdersSection({
+  onSelect,
+  activeTab,
+  setActiveTab,
+}: {
+  onSelect: (order: Order) => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}) {
   const allOrders = MOCK_ORDERS;
   const tab = ORDER_TABS.find((t) => t.key === activeTab)!;
   const orders = allOrders.filter(tab.filter);
@@ -408,9 +415,8 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap",
           borderBottom: "1px solid rgba(255,255,255,0.07)",
-          overflowX: "auto",
-          scrollbarWidth: "none",
           gap: "0",
           marginBottom: "4px",
         }}
@@ -425,8 +431,8 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "10px 18px",
+                gap: "5px",
+                padding: "8px 12px",
                 border: "none",
                 borderBottom: isActive
                   ? "2px solid #e8a830"
@@ -438,9 +444,9 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
                 background: "transparent",
                 color: isActive ? "#e8a830" : "rgba(245,247,249,0.35)",
                 fontFamily: "monospace",
-                fontSize: "9px",
+                fontSize: "8px",
                 fontWeight: 700,
-                letterSpacing: "0.14em",
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
                 transition: "color 0.15s",
               }}
@@ -527,15 +533,17 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.07)",
                 borderRadius: "14px",
-                padding: "18px 20px",
+                padding: "14px 16px",
                 display: "flex",
-                gap: "16px",
+                gap: "12px",
                 alignItems: "center",
-                flexWrap: "wrap",
+                flexWrap: "nowrap",
                 cursor: "pointer",
                 textAlign: "left",
                 width: "100%",
                 transition: "border-color 0.15s, background 0.15s",
+                boxSizing: "border-box",
+                overflow: "hidden",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.borderColor =
@@ -552,8 +560,9 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
             >
               <div
                 style={{
-                  width: "56px",
-                  height: "56px",
+                  width: "48px",
+                  height: "48px",
+                  minWidth: "48px",
                   borderRadius: "10px",
                   background: "rgba(74,127,165,0.1)",
                   border: "1px solid rgba(74,127,165,0.2)",
@@ -587,7 +596,7 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
                   </svg>
                 )}
               </div>
-              <div style={{ flex: 1, minWidth: "160px" }}>
+              <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                 <div
                   style={{
                     display: "flex",
@@ -646,17 +655,18 @@ function OrdersSection({ onSelect }: { onSelect: (order: Order) => void }) {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
+                  gap: "6px",
                   flexShrink: 0,
                 }}
               >
                 <p
                   style={{
                     fontFamily: "Bebas Neue, sans-serif",
-                    fontSize: "1.3rem",
+                    fontSize: "1.1rem",
                     letterSpacing: "0.06em",
                     color: "#e8a830",
                     margin: 0,
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {formatPrice(
@@ -2185,6 +2195,15 @@ export default function AccountClient({
 }: AccountClientProps) {
   const [activeSection, setActiveSection] = useState<Section>("orders");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [activeOrderTab, setActiveOrderTab] = useState("all");
+  const [mobileOrdersView, setMobileOrdersView] = useState(false);
+  const [mobileSelectedOrder, setMobileSelectedOrder] = useState<Order | null>(
+    null,
+  );
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sectionTitles: Record<Section, string> = {
     orders: selectedOrder
@@ -2203,18 +2222,142 @@ export default function AccountClient({
   return (
     <>
       <style>{`
-        @media (max-width: 768px) {
+        .mobile-account-header { display: none; }
+        .mobile-hide-orders { display: block; }
+       @media (max-width: 768px) {
+          .mobile-account-header { display: block; }
           .account-layout { flex-direction: column !important; }
-          .account-sidebar { width: 100% !important; position: static !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; padding: 0 !important; }
-          .sidebar-user { display: none !important; }
-          .sidebar-nav { flex-direction: row !important; gap: 4px !important; padding: 12px 20px !important; overflow-x: auto !important; }
-          .sidebar-signout { display: none !important; }
-          .account-content { padding: 24px 20px 60px !important; }
+          .account-sidebar { display: none !important; }
+.account-content { padding: 20px 16px 80px !important; }
+          .mobile-hide-orders { display: none !important; }
         }
         @media (min-width: 769px) {
           .account-sidebar { position: sticky !important; top: 100px !important; align-self: flex-start !important; }
         }
       `}</style>
+
+      {/* ── Mobile Header ── */}
+      <div
+        className="mobile-account-header"
+        style={{
+          background: "#0d1117",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Profile strip */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+            padding: "20px 20px 16px",
+          }}
+        >
+          <div
+            style={{
+              width: "52px",
+              height: "52px",
+              borderRadius: "50%",
+              background: "rgba(232,168,48,0.1)",
+              border: "2px solid rgba(232,168,48,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "1.4rem",
+                color: "#e8a830",
+              }}
+            >
+              {customer.displayName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "1.1rem",
+                letterSpacing: "0.06em",
+                color: "#f5f7f9",
+                margin: "0 0 2px",
+              }}
+            >
+              {customer.displayName}
+            </p>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: "9px",
+                color: "rgba(245,247,249,0.3)",
+                letterSpacing: "0.04em",
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {customer.email}
+            </p>
+          </div>
+          <div style={{ flexShrink: 0 }}>{SignOutButton}</div>
+        </div>
+
+        {/* Addresses + Profile tabs */}
+        <div
+          style={{
+            display: "flex",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {NAV_ITEMS.filter((n) => n.key !== "orders").map(
+            ({ key, label, icon }) => {
+              const isActive = activeSection === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setActiveSection(key as Section);
+                    setSelectedOrder(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "5px",
+                    padding: "12px 8px",
+                    background: "none",
+                    border: "none",
+                    borderTop: isActive
+                      ? "2px solid #e8a830"
+                      : "2px solid transparent",
+                    cursor: "pointer",
+                    color: isActive ? "#e8a830" : "rgba(245,247,249,0.35)",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {icon}
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "8px",
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            },
+          )}
+        </div>
+      </div>
 
       <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 32px" }}>
         <div
@@ -2395,7 +2538,10 @@ export default function AccountClient({
             className="account-content"
             style={{ flex: 1, minWidth: 0, padding: "40px 40px 80px" }}
           >
-            <div style={{ marginBottom: "28px" }}>
+            <div
+              style={{ marginBottom: "28px" }}
+              className={activeSection === "orders" ? "mobile-hide-orders" : ""}
+            >
               {selectedOrder ? (
                 <>
                   <button
@@ -2502,12 +2648,20 @@ export default function AccountClient({
               )}
             </div>
 
-            {activeSection === "orders" && !selectedOrder && (
-              <OrdersSection onSelect={setSelectedOrder} />
-            )}
-            {activeSection === "orders" && selectedOrder && (
-              <OrderDetail order={selectedOrder} />
-            )}
+            <div
+              className={activeSection === "orders" ? "mobile-hide-orders" : ""}
+            >
+              {activeSection === "orders" && !selectedOrder && (
+                <OrdersSection
+                  onSelect={setSelectedOrder}
+                  activeTab={activeOrderTab}
+                  setActiveTab={setActiveOrderTab}
+                />
+              )}
+              {activeSection === "orders" && selectedOrder && (
+                <OrderDetail order={selectedOrder} />
+              )}
+            </div>
             {activeSection === "addresses" && <AddressesSection />}
             {activeSection === "profile" && (
               <ProfileSection customer={customer} />
@@ -2515,6 +2669,626 @@ export default function AccountClient({
           </main>
         </div>
       </div>
+
+      {/* ── Mobile Orders Bottom Bar ── */}
+      <div
+        className="mobile-account-header"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9998,
+          background: "rgba(13,17,23,0.97)",
+          backdropFilter: "blur(16px)",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "8px 20px 4px",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "monospace",
+              fontSize: "8px",
+              fontWeight: 800,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "rgba(245,247,249,0.4)",
+            }}
+          >
+            My Orders
+          </span>
+          <button
+            onClick={() => {
+              setActiveOrderTab("all");
+              setMobileSelectedOrder(null);
+              setMobileOrdersView(true);
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#e8a830",
+              fontFamily: "monospace",
+              fontSize: "8px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "3px",
+            }}
+          >
+            View All{" "}
+            <svg
+              width="9"
+              height="9"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            padding: "4px 8px 10px",
+          }}
+        >
+          {[
+            {
+              label: "To Pay",
+              icon: (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <path d="M2 10h20" />
+                </svg>
+              ),
+              tab: "to-pay",
+              count: MOCK_ORDERS.filter((o) => o.financialStatus === "PENDING")
+                .length,
+            },
+            {
+              label: "To Ship",
+              icon: (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              ),
+              tab: "to-ship",
+              count: MOCK_ORDERS.filter(
+                (o) =>
+                  o.financialStatus === "PAID" &&
+                  o.fulfillmentStatus === "UNFULFILLED",
+              ).length,
+            },
+            {
+              label: "To Receive",
+              icon: (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <rect x="1" y="3" width="15" height="13" rx="1" />
+                  <path d="M16 8h4l3 3v5h-7V8zM1 16h15M5.5 21a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM18.5 21a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                </svg>
+              ),
+              tab: "to-receive",
+              count: MOCK_ORDERS.filter(
+                (o) =>
+                  o.fulfillmentStatus === "FULFILLED" &&
+                  o.financialStatus === "PAID",
+              ).length,
+            },
+            {
+              label: "Completed",
+              icon: (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ),
+              tab: "completed",
+              count: 0,
+            },
+            {
+              label: "Cancelled",
+              icon: (
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+              ),
+              tab: "cancelled",
+              count: MOCK_ORDERS.filter((o) => o.financialStatus === "REFUNDED")
+                .length,
+            },
+          ].map((item) => (
+            <button
+              key={item.tab}
+              onClick={() => {
+                setActiveOrderTab(item.tab);
+                setMobileSelectedOrder(null);
+                setMobileOrdersView(true);
+              }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "5px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px 4px",
+                position: "relative",
+              }}
+            >
+              {item.count > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "2px",
+                    right: "6px",
+                    background: "#e8a830",
+                    color: "#0d1117",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    minWidth: "14px",
+                    height: "14px",
+                    borderRadius: "7px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 3px",
+                  }}
+                >
+                  {item.count}
+                </span>
+              )}
+              <span style={{ color: "rgba(245,247,249,0.6)" }}>
+                {item.icon}
+              </span>
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "7px",
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,247,249,0.4)",
+                  textAlign: "center",
+                  lineHeight: 1.2,
+                }}
+              >
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Mobile Orders Overlay ── */}
+      {mounted &&
+        mobileOrdersView &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: "94px",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "#0d1117",
+              zIndex: 9999,
+              display: "flex",
+              flexDirection: "column",
+              overflowY: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "14px",
+                padding: "16px 20px",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setMobileOrdersView(false);
+                  setMobileSelectedOrder(null);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#f5f7f9",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: 0,
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 12H5M12 5l-7 7 7 7" />
+                </svg>
+              </button>
+              <h2
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.3rem",
+                  letterSpacing: "0.06em",
+                  color: "#f5f7f9",
+                  margin: 0,
+                  flex: 1,
+                }}
+              >
+                {mobileSelectedOrder
+                  ? `Order #${mobileSelectedOrder.orderNumber}`
+                  : "My Purchases"}
+              </h2>
+            </div>
+
+            {mobileSelectedOrder ? (
+              /* Order Detail */
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "20px 16px 40px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    marginBottom: "20px",
+                  }}
+                >
+                  <StatusBadge label={mobileSelectedOrder.financialStatus} />
+                  <StatusBadge label={mobileSelectedOrder.fulfillmentStatus} />
+                </div>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    color: "rgba(245,247,249,0.3)",
+                    letterSpacing: "0.06em",
+                    margin: "0 0 20px",
+                  }}
+                >
+                  Placed on {formatDate(mobileSelectedOrder.processedAt, true)}
+                </p>
+                <OrderDetail order={mobileSelectedOrder} />
+              </div>
+            ) : (
+              <>
+                {/* Tabs */}
+                <div
+                  style={{
+                    display: "flex",
+                    overflowX: "auto",
+                    scrollbarWidth: "none",
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {ORDER_TABS.map((t) => {
+                    const count = MOCK_ORDERS.filter(t.filter).length;
+                    const isActive = activeOrderTab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => setActiveOrderTab(t.key)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "13px 16px",
+                          border: "none",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                          borderBottom: isActive
+                            ? "2px solid #e8a830"
+                            : "2px solid transparent",
+                          marginBottom: "-1px",
+                          background: "transparent",
+                          color: isActive
+                            ? "#e8a830"
+                            : "rgba(245,247,249,0.35)",
+                          fontFamily: "monospace",
+                          fontSize: "9px",
+                          fontWeight: 700,
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {t.label}
+                        {count > 0 && (
+                          <span
+                            style={{
+                              background: isActive
+                                ? "rgba(232,168,48,0.15)"
+                                : "rgba(255,255,255,0.06)",
+                              color: isActive
+                                ? "#e8a830"
+                                : "rgba(245,247,249,0.25)",
+                              borderRadius: "20px",
+                              padding: "1px 6px",
+                              fontSize: "8px",
+                              fontWeight: 800,
+                            }}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Orders list */}
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    padding: "16px 16px 40px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {(() => {
+                    const tab = ORDER_TABS.find(
+                      (t) => t.key === activeOrderTab,
+                    )!;
+                    const filtered = MOCK_ORDERS.filter(tab.filter);
+                    if (filtered.length === 0)
+                      return (
+                        <div style={{ padding: "60px 0", textAlign: "center" }}>
+                          <p
+                            style={{
+                              fontFamily: "Bebas Neue, sans-serif",
+                              fontSize: "1.4rem",
+                              letterSpacing: "0.08em",
+                              color: "rgba(245,247,249,0.12)",
+                              margin: "0 0 6px",
+                            }}
+                          >
+                            No {tab.label} orders.
+                          </p>
+                          <p
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: "10px",
+                              color: "rgba(245,247,249,0.2)",
+                              margin: 0,
+                            }}
+                          >
+                            Nothing here yet.
+                          </p>
+                        </div>
+                      );
+                    return filtered.map((order) => {
+                      const items = order.lineItems.edges.map((e) => e.node);
+                      const firstImage = items[0]?.variant?.image?.url;
+                      return (
+                        <button
+                          key={order.id}
+                          onClick={() => setMobileSelectedOrder(order)}
+                          style={{
+                            background: "rgba(255,255,255,0.02)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            borderRadius: "14px",
+                            padding: "14px 16px",
+                            display: "flex",
+                            gap: "12px",
+                            alignItems: "center",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            width: "100%",
+                            boxSizing: "border-box",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "48px",
+                              height: "48px",
+                              minWidth: "48px",
+                              borderRadius: "10px",
+                              background: "rgba(74,127,165,0.1)",
+                              border: "1px solid rgba(74,127,165,0.2)",
+                              flexShrink: 0,
+                              overflow: "hidden",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {firstImage ? (
+                              <img
+                                src={firstImage}
+                                alt=""
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            ) : (
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="rgba(74,127,165,0.5)"
+                                strokeWidth="1.5"
+                              >
+                                <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                              </svg>
+                            )}
+                          </div>
+                          <div
+                            style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                flexWrap: "wrap",
+                                marginBottom: "5px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontFamily: "Bebas Neue, sans-serif",
+                                  fontSize: "1rem",
+                                  letterSpacing: "0.08em",
+                                  color: "#f5f7f9",
+                                }}
+                              >
+                                Order #{order.orderNumber}
+                              </span>
+                              <StatusBadge label={order.financialStatus} />
+                            </div>
+                            <p
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: "10px",
+                                color: "rgba(245,247,249,0.35)",
+                                letterSpacing: "0.04em",
+                                margin: "0 0 3px",
+                              }}
+                            >
+                              {formatDate(order.processedAt)} · {items.length}{" "}
+                              item{items.length !== 1 ? "s" : ""}
+                            </p>
+                            <p
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: "10px",
+                                color: "rgba(245,247,249,0.45)",
+                                margin: 0,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {items
+                                .slice(0, 2)
+                                .map((i) => i.title)
+                                .join(", ")}
+                              {items.length > 2 && ` +${items.length - 2} more`}
+                            </p>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontFamily: "Bebas Neue, sans-serif",
+                                fontSize: "1.05rem",
+                                letterSpacing: "0.06em",
+                                color: "#e8a830",
+                                margin: 0,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {formatPrice(
+                                order.currentTotalPrice.amount,
+                                order.currentTotalPrice.currencyCode,
+                              )}
+                            </p>
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="rgba(245,247,249,0.25)"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                            >
+                              <path d="M9 18l6-6-6-6" />
+                            </svg>
+                          </div>
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </>
+            )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

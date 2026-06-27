@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCustomer } from "@/lib/shopify-customer";
 import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import SignOutButton from "@/components/account/SignOutButton";
 import AccountClient from "@/components/account/AccountClient";
 
@@ -63,8 +62,6 @@ export default async function AccountPage() {
           SignOutButton={<SignOutButton />}
         />
       </div>
-
-      <Footer />
     </div>
   );
 }
