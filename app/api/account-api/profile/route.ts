@@ -1,40 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Customer } from "@/models/customer";
-import { Order } from "@/models/order";
 
-function shape(c: any, numberOfOrders: number) {
+// Normalize GID → plain numeric string for consistent storage
+function normalizeId(id: string) {
+  if (!id) return id;
+  return id.includes("gid://") ? id.split("/").pop()! : id;
+}
+
+function shape(c: any) {
   return {
-    displayName: c.displayName,
+    displayName: c.displayName ?? "",
     email: c.email ?? "",
     phone: c.phone ?? "",
-    numberOfOrders,
+    numberOfOrders: c.numberOfOrders ?? 0,
   };
 }
 
-// GET /api/account/profile?customerId=xxxx
+// GET /api/account-api/profile?customerId=xxxx
 export async function GET(request: NextRequest) {
   try {
-    const customerId = request.nextUrl.searchParams.get("customerId");
-    if (!customerId) {
+    const raw = request.nextUrl.searchParams.get("customerId");
+    if (!raw) {
       return NextResponse.json(
         { error: "Missing required query param: customerId" },
         { status: 400 },
       );
     }
 
+    const customerId = normalizeId(raw);
     await connectToDatabase();
-    const customer = await Customer.findOne({ shopifyCustomerId: customerId }).lean();
+
+    const customer = await Customer.findOne({
+      $or: [
+        { shopifyCustomerId: customerId },
+        { shopifyCustomerId: raw }, // try both formats
+      ],
+    }).lean();
 
     if (!customer) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
-    const numberOfOrders = await Order.countDocuments({ customerId });
-
-    return NextResponse.json({ customer: shape(customer, numberOfOrders) });
+    return NextResponse.json({ customer: shape(customer) });
   } catch (err) {
-    console.error("[GET /api/account/profile]", err);
+    console.error("[GET /api/account-api/profile]", err);
     return NextResponse.json(
       { error: "Failed to fetch profile" },
       { status: 500 },
@@ -42,44 +52,47 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH /api/account/profile
+// PATCH /api/account-api/profile
 // body: { customerId, displayName?, phone? }
-// Email is intentionally not editable here — it's managed via Shopify, same
-// as the note already shown in ProfileSection.
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log("Received profile data:", body);
-    const { customerId, displayName, phone } = body;
+    const { customerId: rawId, displayName, phone } = body;
 
-    if (!customerId) {
+    if (!rawId) {
       return NextResponse.json(
         { error: "Missing required field: customerId" },
         { status: 400 },
       );
     }
 
+    const customerId = normalizeId(rawId);
     await connectToDatabase();
 
     const updates: Record<string, string> = {};
-    if (typeof displayName === "string") updates.displayName = displayName;
-    if (typeof phone === "string") updates.phone = phone;
+    if (typeof displayName === "string" && displayName.trim())
+      updates.displayName = displayName.trim();
+    if (typeof phone === "string") updates.phone = phone.trim();
 
+    // upsert: true creates the document if it doesn't exist yet
     const updated = await Customer.findOneAndUpdate(
-      { shopifyCustomerId: customerId },
-      { $set: updates },
-      { new: true },
+      {
+        $or: [
+          { shopifyCustomerId: customerId },
+          { shopifyCustomerId: rawId },
+        ],
+      },
+      {
+        $set: updates,
+        // Set shopifyCustomerId on creation so future lookups work
+        $setOnInsert: { shopifyCustomerId: customerId },
+      },
+      { new: true, upsert: true },
     ).lean();
 
-    if (!updated) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
-    }
-
-    const numberOfOrders = await Order.countDocuments({ customerId });
-
-    return NextResponse.json({ customer: shape(updated, numberOfOrders) });
+    return NextResponse.json({ customer: shape(updated) });
   } catch (err) {
-    console.error("[PATCH /api/account/profile]", err);
+    console.error("[PATCH /api/account-api/profile]", err);
     return NextResponse.json(
       { error: "Failed to update profile" },
       { status: 500 },

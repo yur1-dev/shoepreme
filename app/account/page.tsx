@@ -1,6 +1,3 @@
-// app/account/page.tsx
-// Server component — auth-gated, passes customer data to AccountClient.
-
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCustomer } from "@/lib/shopify-customer";
@@ -32,33 +29,23 @@ export default async function AccountPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0d1117",
-        position: "relative",
-      }}
-    >
-      {/* Top glow */}
+    <div style={{ minHeight: "100vh", background: "#0d1117", position: "relative" }}>
       <div
         style={{
           position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
+          top: 0, left: 0, right: 0,
           height: "400px",
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,168,48,0.06) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,168,48,0.06) 0%, transparent 70%)",
           pointerEvents: "none",
           zIndex: 0,
         }}
       />
-
       <Navbar />
-
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
         <AccountClient
           customerId={customer?.id ?? ""}
+          // Pass the storefront token so the orders route can fetch live
+          shopifyToken={token ?? ""}
           customer={customerData}
           SignOutButton={<SignOutButton />}
         />

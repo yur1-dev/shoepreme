@@ -1,7 +1,12 @@
-// app/api/account-api/addresses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Address } from "@/models/address";
+
+// Normalize GID → plain string so storage is consistent
+function normalizeCustomerId(id: string) {
+  if (!id) return id;
+  return id.includes("gid://") ? id.split("/").pop()! : id;
+}
 
 function shape(a: any) {
   return {
@@ -19,18 +24,20 @@ function shape(a: any) {
   };
 }
 
-// GET
+// GET /api/account-api/addresses?customerId=xxx
 export async function GET(request: NextRequest) {
   try {
-    const customerId = request.nextUrl.searchParams.get("customerId");
-    if (!customerId) {
+    const raw = request.nextUrl.searchParams.get("customerId");
+    if (!raw) {
       return NextResponse.json(
         { error: "Missing required query param: customerId" },
         { status: 400 }
       );
     }
 
+    const customerId = normalizeCustomerId(raw);
     await connectToDatabase();
+
     const addresses = await Address.find({ customerId })
       .sort({ isDefault: -1, createdAt: 1 })
       .lean();
@@ -45,21 +52,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST
+// POST /api/account-api/addresses
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customerId, ...fields } = body;
+    const { customerId: rawId, ...fields } = body;
 
-    if (!customerId) {
+    if (!rawId) {
       return NextResponse.json(
         { error: "Missing required field: customerId" },
         { status: 400 }
       );
     }
 
-    const required = ["firstName", "lastName", "address1", "city", "province", "zip", "country", "phone"];
+    const customerId = normalizeCustomerId(rawId);
 
+    const required = [
+      "firstName", "lastName", "address1",
+      "city", "province", "zip", "country", "phone",
+    ];
     for (const key of required) {
       if (!fields[key]) {
         return NextResponse.json(
@@ -74,11 +85,7 @@ export async function POST(request: NextRequest) {
     const existingCount = await Address.countDocuments({ customerId });
     const isDefault = existingCount === 0;
 
-    const created = await Address.create({
-      customerId,
-      ...fields,
-      isDefault,
-    });
+    const created = await Address.create({ customerId, ...fields, isDefault });
 
     return NextResponse.json({ address: shape(created) }, { status: 201 });
   } catch (err) {
