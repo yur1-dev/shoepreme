@@ -145,9 +145,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const checkout = useCallback(() => {
-    if (cart?.checkoutUrl) {
-      window.location.href = cart.checkoutUrl;
-    }
+    window.location.href = "/checkout";
   }, [cart]);
 
   return (
