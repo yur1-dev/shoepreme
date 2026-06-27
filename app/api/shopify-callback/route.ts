@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
-  const clientId = "d7e2dbd1291662abb4f89d77574c973f";
+  const clientId = "fee789348e42f406784fe4451c293cfa"; // shoepreme-admin-v2
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET!;
 
   const res = await fetch(
