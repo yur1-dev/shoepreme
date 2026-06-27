@@ -27,6 +27,7 @@ export default function AccountPreview() {
       <Navbar />
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
         <AccountClient
+          customerId="preview-customer-id"
           customer={{
             displayName: "Marc",
             email: "marc@shoepreme.com",

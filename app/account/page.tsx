@@ -25,7 +25,6 @@ export default async function AccountPage() {
     "Crew";
 
   const customerData = {
-    customerId: customer?.id ?? "",
     displayName,
     email: customer?.email ?? session.user.email ?? undefined,
     phone: customer?.phone ?? undefined,
@@ -59,6 +58,7 @@ export default async function AccountPage() {
 
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
         <AccountClient
+          customerId={customer?.id ?? ""}
           customer={customerData}
           SignOutButton={<SignOutButton />}
         />
