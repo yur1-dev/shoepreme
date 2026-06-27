@@ -1,4 +1,4 @@
-// app/api/account/addresses/route.ts
+// app/api/account-api/addresses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Address } from "@/models/address";
@@ -19,7 +19,7 @@ function shape(a: any) {
   };
 }
 
-// GET /api/account/addresses?customerId=xxxx
+// GET
 export async function GET(request: NextRequest) {
   try {
     const customerId = request.nextUrl.searchParams.get("customerId");
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ addresses: addresses.map(shape) });
   } catch (err) {
-    console.error("[GET /api/account/addresses]", err);
+    console.error("[GET /api/account-api/addresses]", err);
     return NextResponse.json(
       { error: "Failed to fetch addresses" },
       { status: 500 }
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/account/addresses
+// POST
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -82,80 +82,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ address: shape(created) }, { status: 201 });
   } catch (err) {
-    console.error("[POST /api/account/addresses]", err);
+    console.error("[POST /api/account-api/addresses]", err);
     return NextResponse.json(
       { error: "Failed to create address" },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/account/addresses/:id
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const fields = await request.json();
-
-    // Prevent changing critical fields
-    delete fields.customerId;
-    delete fields.isDefault;
-    delete fields.id;
-    delete fields._id;
-
-    await connectToDatabase();
-
-    const updated = await Address.findByIdAndUpdate(id, fields, { new: true }).lean();
-
-    if (!updated) {
-      return NextResponse.json({ error: "Address not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ address: shape(updated) });
-  } catch (err) {
-    console.error("[PATCH /api/account/addresses/:id]", err);
-    return NextResponse.json(
-      { error: "Failed to update address" },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE /api/account/addresses/:id
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    await connectToDatabase();
-
-    const toDelete = await Address.findById(id).lean();
-    if (!toDelete) {
-      return NextResponse.json({ error: "Address not found" }, { status: 404 });
-    }
-
-    await Address.findByIdAndDelete(id);
-
-    // If we deleted the default address, make the oldest one the new default
-    if ((toDelete as any).isDefault) {
-      const next = await Address.findOne({
-        customerId: (toDelete as any).customerId,
-      }).sort({ createdAt: 1 });
-
-      if (next) {
-        next.isDefault = true;
-        await next.save();
-      }
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("[DELETE /api/account/addresses/:id]", err);
-    return NextResponse.json(
-      { error: "Failed to delete address" },
       { status: 500 }
     );
   }
