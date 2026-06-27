@@ -36,6 +36,18 @@ interface DraftProduct {
   imageId?: string;
   sizes: string[];
   sizeInput: string;
+  stockEdits: Record<
+    string,
+    {
+      inventoryItemId: string;
+      current: number;
+      newQty: string;
+      price: string;
+      variantId: string;
+    }
+  >;
+  newVariantPrice?: string;
+  newVariantQty?: string;
 }
 
 type ModalState =
@@ -54,15 +66,34 @@ function emptyDraft(): DraftProduct {
     imageId: undefined,
     sizes: [],
     sizeInput: "",
+    stockEdits: {},
   };
 }
 
 function draftFromProduct(product: any): DraftProduct {
   const firstVariant = product.variants?.edges?.[0]?.node;
-  const sizes =
-    product.variants?.edges
-      ?.map((e: any) => e.node.title)
-      .filter((t: string) => t !== "Default Title") ?? [];
+  const sizes = (product.variants?.edges ?? [])
+    .map(
+      (e: any) =>
+        e.node.selectedOptions?.find((o: any) => o.name === "Size")?.value ??
+        e.node.title,
+    )
+    .filter((t: string) => t && t !== "Default Title");
+  const stockEdits: DraftProduct["stockEdits"] = {};
+  (product.variants?.edges ?? []).forEach((e: any) => {
+    const v = e.node;
+    const label =
+      v.selectedOptions?.find((o: any) => o.name === "Size")?.value ?? v.title;
+    if (label && label !== "Default Title") {
+      stockEdits[label] = {
+        inventoryItemId: v.inventoryItem?.id,
+        current: v.inventoryQuantity ?? 0,
+        newQty: String(v.inventoryQuantity ?? 0),
+        price: v.price,
+        variantId: v.id,
+      };
+    }
+  });
   return {
     title: product.title,
     productType: product.productType ?? "",
@@ -73,6 +104,7 @@ function draftFromProduct(product: any): DraftProduct {
     imageId: product.featuredImage?.id,
     sizes,
     sizeInput: "",
+    stockEdits,
   };
 }
 
@@ -180,6 +212,34 @@ function ProductModal({
           if (!d2.success) {
             showToast("Price update failed: " + d2.error, false);
             return;
+          }
+        }
+        // Save stock edits
+        const stockEntries = Object.entries(draft.stockEdits ?? {});
+        for (const [, entry] of stockEntries) {
+          const newQty = parseInt(entry.newQty);
+          if (!isNaN(newQty) && entry.inventoryItemId) {
+            const delta = newQty - entry.current;
+            if (delta !== 0) {
+              await fetch("/api/admin/update-inventory", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  inventoryItemId: entry.inventoryItemId,
+                  quantity: delta,
+                }),
+              });
+            }
+          }
+          if (entry.variantId && entry.price) {
+            await fetch("/api/admin/update-variant-price", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                variantId: entry.variantId,
+                price: entry.price,
+              }),
+            });
           }
         }
         showToast("Product saved ✓");
@@ -302,6 +362,7 @@ function ProductModal({
           </button>
         </div>
 
+        <style>{`input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }`}</style>
         {/* Body */}
         <div
           style={{
@@ -311,10 +372,47 @@ function ProductModal({
             gap: 22,
           }}
         >
-          {/* Image — edit only */}
+          {/* Images — edit only */}
           {isEdit && (
             <div>
-              <FieldLabel>Product Image</FieldLabel>
+              <FieldLabel>Product Images</FieldLabel>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  marginBottom: 12,
+                }}
+              >
+                {(product.media?.edges ?? []).map(
+                  (e: any, i: number) =>
+                    e.node?.image?.url && (
+                      <div
+                        key={i}
+                        style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={e.node.image.url}
+                          alt=""
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      </div>
+                    ),
+                )}
+              </div>
+              <FieldLabel>Replace Featured Image</FieldLabel>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <div
                   style={{
@@ -388,6 +486,58 @@ function ProductModal({
               </div>
             </div>
           )}
+
+          {/* Vendor + Collections — edit only */}
+          {isEdit &&
+            (product?.vendor ||
+              (product?.collections?.edges?.length ?? 0) > 0) && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 14,
+                }}
+              >
+                {product.vendor && (
+                  <div>
+                    <FieldLabel>Vendor</FieldLabel>
+                    <p
+                      style={{
+                        fontFamily: "Poppins, sans-serif",
+                        fontSize: 12,
+                        color: "rgba(240,244,248,0.6)",
+                        margin: 0,
+                      }}
+                    >
+                      {product.vendor}
+                    </p>
+                  </div>
+                )}
+                {(product.collections?.edges?.length ?? 0) > 0 && (
+                  <div>
+                    <FieldLabel>Collections</FieldLabel>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {product.collections.edges.map((e: any) => (
+                        <span
+                          key={e.node.id}
+                          style={{
+                            background: "rgba(255,255,255,0.05)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: 5,
+                            padding: "3px 8px",
+                            fontFamily: "monospace",
+                            fontSize: 9,
+                            color: "rgba(240,244,248,0.5)",
+                          }}
+                        >
+                          {e.node.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Name + Category */}
           <div
@@ -615,7 +765,321 @@ function ProductModal({
                 Default variant · add sizes in Shopify admin
               </p>
             )}
+
+            {isEdit && (
+              <div style={{ marginTop: 10 }}>
+                <FieldLabel>Add New Size</FieldLabel>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 100px 80px auto",
+                    gap: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    value={draft.sizeInput}
+                    onChange={(e) => upd("sizeInput", e.target.value)}
+                    placeholder="e.g. EU 42"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 8,
+                      padding: "9px 12px",
+                      color: "#f0f4f8",
+                      fontFamily: "Poppins, sans-serif",
+                      fontSize: 12,
+                      outline: "none",
+                    }}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(232,168,48,0.4)")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(255,255,255,0.1)")
+                    }
+                  />
+                  <input
+                    value={draft.newVariantPrice ?? draft.price}
+                    onChange={(e) =>
+                      upd("newVariantPrice" as any, e.target.value)
+                    }
+                    placeholder="Price"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 8,
+                      padding: "9px 12px",
+                      color: "#f0f4f8",
+                      fontFamily: "Poppins, sans-serif",
+                      fontSize: 12,
+                      outline: "none",
+                    }}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(232,168,48,0.4)")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(255,255,255,0.1)")
+                    }
+                  />
+                  <input
+                    value={draft.newVariantQty ?? "0"}
+                    onChange={(e) =>
+                      upd("newVariantQty" as any, e.target.value)
+                    }
+                    placeholder="Qty"
+                    type="number"
+                    min="0"
+                    style={
+                      {
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 8,
+                        padding: "9px 12px",
+                        color: "#f0f4f8",
+                        fontFamily: "Poppins, sans-serif",
+                        fontSize: 12,
+                        outline: "none",
+                        MozAppearance: "textfield",
+                        appearance: "textfield",
+                      } as React.CSSProperties
+                    }
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(232,168,48,0.4)")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        "rgba(255,255,255,0.1)")
+                    }
+                  />
+                  <button
+                    onClick={async () => {
+                      const size = draft.sizeInput.trim();
+                      if (!size) return;
+                      const price =
+                        (draft as any).newVariantPrice || draft.price;
+                      const qty = parseInt((draft as any).newVariantQty || "0");
+                      const res = await fetch("/api/admin/add-variant", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          productId: product.id,
+                          size,
+                          price,
+                          quantity: qty,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!data.success) {
+                        showToast("Failed: " + data.error, false);
+                        return;
+                      }
+                      showToast("Size added ✓");
+                      upd("sizeInput", "");
+                      onSaved();
+                    }}
+                    style={{
+                      background: "rgba(232,168,48,0.1)",
+                      border: "1px solid rgba(232,168,48,0.28)",
+                      borderRadius: 8,
+                      padding: "9px 16px",
+                      color: "#e8a830",
+                      fontFamily: "monospace",
+                      fontSize: 9,
+                      fontWeight: 800,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Add Size
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Stock Editor */}
+          {isEdit && Object.keys(draft.stockEdits ?? {}).length > 0 && (
+            <div>
+              <FieldLabel>Stock by Size</FieldLabel>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {Object.entries(draft.stockEdits).map(([size, entry]) => (
+                  <div
+                    key={size}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 90px 90px 36px 36px",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "rgba(255,255,255,0.025)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#e8a830",
+                      }}
+                    >
+                      {size}
+                    </span>
+                    <input
+                      value={entry.price}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          stockEdits: {
+                            ...p.stockEdits,
+                            [size]: {
+                              ...p.stockEdits[size],
+                              price: e.target.value,
+                            },
+                          },
+                        }))
+                      }
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 6,
+                        padding: "5px 8px",
+                        color: "#f0f4f8",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        outline: "none",
+                        width: "100%",
+                        textAlign: "center",
+                      }}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "rgba(232,168,48,0.4)")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "rgba(255,255,255,0.1)")
+                      }
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={entry.newQty}
+                      onChange={(e) =>
+                        setDraft((p) => ({
+                          ...p,
+                          stockEdits: {
+                            ...p.stockEdits,
+                            [size]: {
+                              ...p.stockEdits[size],
+                              newQty: e.target.value,
+                            },
+                          },
+                        }))
+                      }
+                      style={
+                        {
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: 6,
+                          padding: "5px 8px",
+                          color: "#f0f4f8",
+                          fontFamily: "monospace",
+                          fontSize: 12,
+                          outline: "none",
+                          width: "100%",
+                          textAlign: "center",
+                          MozAppearance: "textfield",
+                          appearance: "textfield",
+                        } as React.CSSProperties
+                      }
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "rgba(232,168,48,0.4)")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "rgba(255,255,255,0.1)")
+                      }
+                    />
+                    <button
+                      onClick={() =>
+                        setDraft((p) => ({
+                          ...p,
+                          stockEdits: {
+                            ...p.stockEdits,
+                            [size]: {
+                              ...p.stockEdits[size],
+                              newQty: String(
+                                Math.max(
+                                  0,
+                                  parseInt(p.stockEdits[size].newQty || "0") -
+                                    1,
+                                ),
+                              ),
+                            },
+                          },
+                        }))
+                      }
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 6,
+                        background: "rgba(248,113,113,0.1)",
+                        border: "1px solid rgba(248,113,113,0.2)",
+                        color: "#f87171",
+                        fontSize: 16,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      −
+                    </button>
+                    <button
+                      onClick={() =>
+                        setDraft((p) => ({
+                          ...p,
+                          stockEdits: {
+                            ...p.stockEdits,
+                            [size]: {
+                              ...p.stockEdits[size],
+                              newQty: String(
+                                parseInt(p.stockEdits[size].newQty || "0") + 1,
+                              ),
+                            },
+                          },
+                        }))
+                      }
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 6,
+                        background: "rgba(74,222,128,0.1)",
+                        border: "1px solid rgba(74,222,128,0.2)",
+                        color: "#4ade80",
+                        fontSize: 16,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Inventory — edit only, read-only */}
           {isEdit && product && (

@@ -234,12 +234,42 @@ export async function getProducts(first = 50) {
               url
               altText
             }
-            variants(first: 10) {
+          vendor
+            collections(first: 5) {
               edges {
                 node {
                   id
+                  title
+                }
+              }
+            }
+            media(first: 10) {
+              edges {
+                node {
+                  ... on MediaImage {
+                    id
+                    image {
+                      url
+                      altText
+                    }
+                  }
+                }
+              }
+            }
+            variants(first: 50) {
+              edges {
+                node {
+                  id
+                  title
                   price
                   inventoryQuantity
+                  inventoryItem {
+                    id
+                  }
+                  selectedOptions {
+                    name
+                    value
+                  }
                 }
               }
             }
@@ -452,4 +482,109 @@ export async function createProduct(input: {
   const errors = data?.data?.productCreate?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
   return { success: true, product: data?.data?.productCreate?.product };
+}
+
+export async function getPrimaryLocationId(): Promise<string | null> {
+  const data = await adminFetch(`
+    query {
+      locations(first: 1) {
+        edges {
+          node {
+            id
+          }
+        }
+      }
+    }
+  `);
+  return data?.data?.locations?.edges?.[0]?.node?.id ?? null;
+}
+
+export async function addVariantToProduct(
+  productId: string,
+  size: string,
+  price: string,
+  quantity: number,
+) {
+  // First get the option ID for "Size"
+  const productData = await adminFetch(
+    `
+    query getProductOptions($id: ID!) {
+      product(id: $id) {
+        options { id name }
+      }
+    }
+  `,
+    { id: productId },
+  );
+
+  const options = productData?.data?.product?.options ?? [];
+  const sizeOption = options.find((o: any) => o.name === "Size");
+
+  if (!sizeOption) {
+    return { success: false, error: "No Size option found on this product" };
+  }
+
+  const data = await adminFetch(
+    `
+    mutation productVariantCreate($input: ProductVariantInput!) {
+      productVariantCreate(input: $input) {
+        productVariant {
+          id
+          title
+          inventoryItem { id }
+        }
+        userErrors { field message }
+      }
+    }
+  `,
+    {
+      input: {
+        productId,
+        price,
+        options: [size],
+        inventoryQuantities: [{ availableQuantity: quantity, locationId: "" }],
+      },
+    },
+  );
+
+  const errors = data?.data?.productVariantCreate?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+
+  const variant = data?.data?.productVariantCreate?.productVariant;
+
+  // Set inventory separately using location
+  const locationId = await getPrimaryLocationId();
+  if (locationId && variant?.inventoryItem?.id && quantity > 0) {
+    await updateVariantInventory(
+      variant.inventoryItem.id,
+      locationId,
+      quantity,
+    );
+  }
+
+  return { success: true, variant };
+}
+
+export async function updateVariantInventory(
+  inventoryItemId: string,
+  locationId: string,
+  available: number,
+) {
+  const data = await adminFetch(
+    `
+    mutation inventoryAdjustQuantity($input: InventoryAdjustQuantityInput!) {
+      inventoryAdjustQuantity(input: $input) {
+        inventoryLevel {
+          available
+        }
+        userErrors { field message }
+      }
+    }
+  `,
+    { input: { inventoryItemId, locationId, availableDelta: available } },
+  );
+
+  const errors = data?.data?.inventoryAdjustQuantity?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
 }
