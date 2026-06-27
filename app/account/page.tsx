@@ -25,6 +25,7 @@ export default async function AccountPage() {
     "Crew";
 
   const customerData = {
+    customerId: customer?.id ?? "",
     displayName,
     email: customer?.email ?? session.user.email ?? undefined,
     phone: customer?.phone ?? undefined,
