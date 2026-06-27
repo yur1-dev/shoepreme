@@ -2218,6 +2218,7 @@ function ProfileSection({
 // ─── Main Export ──────────────────────────────────────────────────────────────
 interface AccountClientPropsExtended extends AccountClientProps {
   customerId: string;
+  shopifyToken?: string;
 }
 
 export default function AccountClient({
@@ -2248,7 +2249,7 @@ export default function AccountClient({
       setOrdersLoading(true);
       try {
         const res = await fetch(
-          `/api/account-api/orders?customerAccessToken=${encodeURIComponent(shopifyToken)}`,
+          `/api/account-api/orders?customerAccessToken=${encodeURIComponent(shopifyToken ?? "")}`,
         );
         const data = await res.json();
         if (!cancelled) setOrders(data.orders ?? []);
