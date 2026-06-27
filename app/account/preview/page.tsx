@@ -27,6 +27,7 @@ export default function AccountPreview() {
       <Navbar />
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
         <AccountClient
+          shopifyToken=""
           customerId="preview-customer-id"
           customer={{
             displayName: "Marc",

@@ -1300,11 +1300,14 @@ function AddressesSection({ customerId }: { customerId: string }) {
     } else if (editingAddress) {
       // Editing an existing address
       try {
-        const res = await fetch(`/api/account-api/addresses/${editingAddress.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
+        const res = await fetch(
+          `/api/account-api/addresses/${editingAddress.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          },
+        );
         const result = await res.json();
         if (res.ok && result.address) {
           setAddresses((prev) =>
@@ -1339,11 +1342,11 @@ function AddressesSection({ customerId }: { customerId: string }) {
   }
 
   async function handleSetDefault(id: string) {
-    setAddresses((prev) =>
-      prev.map((a) => ({ ...a, isDefault: a.id === id })),
-    );
+    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
     try {
-      await fetch(`/api/account-api/addresses/${id}/default`, { method: "POST" });
+      await fetch(`/api/account-api/addresses/${id}/default`, {
+        method: "POST",
+      });
     } catch (err) {
       console.error("Failed to set default address", err);
     }
@@ -1809,7 +1812,10 @@ function ProfileSection({
   // the initial fetch resolves with real values from MongoDB).
   useEffect(() => {
     if (!editing) {
-      setForm({ displayName: customer.displayName, phone: customer.phone ?? "" });
+      setForm({
+        displayName: customer.displayName,
+        phone: customer.phone ?? "",
+      });
     }
   }, [customer.displayName, customer.phone, editing]);
 
@@ -2212,6 +2218,7 @@ function ProfileSection({
 // ─── Main Export ──────────────────────────────────────────────────────────────
 interface AccountClientPropsExtended extends AccountClientProps {
   customerId: string;
+  shopifyToken?: string;
 }
 
 export default function AccountClient({
