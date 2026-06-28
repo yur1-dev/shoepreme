@@ -105,6 +105,43 @@ export async function fulfillOrder(orderId: string) {
     fulfillment: data?.data?.fulfillmentCreate?.fulfillment,
   };
 }
+// ─── 1. Add this function to lib/shopify-admin.ts ────────────────────────────
+// Paste it anywhere in the file alongside your other exported functions.
+
+export async function markOrderAsPaid(orderId: string, paymentMethod: string) {
+  // Shopify uses transactions to mark an order as paid
+  const data = await adminFetch(
+    `
+    mutation orderMarkAsPaid($input: OrderMarkAsPaidInput!) {
+      orderMarkAsPaid(input: $input) {
+        order {
+          id
+          displayFinancialStatus
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `,
+    {
+      input: {
+        id: orderId,
+      },
+    },
+  );
+
+  const errors = data?.data?.orderMarkAsPaid?.userErrors;
+  if (errors?.length) {
+    return { success: false, error: errors[0].message };
+  }
+
+  return {
+    success: true,
+    order: data?.data?.orderMarkAsPaid?.order,
+  };
+}
 
 export async function cancelOrder(orderId: string) {
   const data = await adminFetch(
