@@ -44,6 +44,12 @@ function formatAddress(addr: any) {
 
 type FilterVal = "ALL" | "UNFULFILLED" | "PENDING" | "FULFILLED" | "PAID";
 
+type PaymentMethod =
+  | "Pay In-Store (Cash)"
+  | "Cash on Delivery (COD)"
+  | "GCash"
+  | "Other";
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +57,10 @@ export default function AdminOrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterVal>("ALL");
   const [search, setSearch] = useState("");
+  const [markPaidOrder, setMarkPaidOrder] = useState<any | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    "Pay In-Store (Cash)",
+  );
   const { toast, showToast } = useToast();
 
   const fetchOrders = useCallback(async () => {
@@ -78,6 +88,25 @@ export default function AdminOrdersPage() {
       data.success
         ? showToast("Order fulfilled ✓")
         : showToast("Fulfill failed: " + data.error, false);
+      if (data.success) await fetchOrders();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleMarkAsPaid(orderId: string, method: PaymentMethod) {
+    setMarkPaidOrder(null);
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/mark-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, paymentMethod: method }),
+      });
+      const data = await res.json();
+      data.success
+        ? showToast("Order marked as paid ✓")
+        : showToast("Failed: " + data.error, false);
       if (data.success) await fetchOrders();
     } finally {
       setActionLoading(null);
@@ -305,9 +334,11 @@ export default function AdminOrdersPage() {
             filtered.map((order) => {
               const isBusy = actionLoading === order.id;
               const isExpanded = expandedId === order.id;
+              const canMarkPaid = order.displayFinancialStatus === "PENDING";
               const canFulfill =
-                order.displayFulfillmentStatus === "UNFULFILLED" ||
-                order.displayFulfillmentStatus === "PARTIALLY_FULFILLED";
+                order.displayFinancialStatus === "PAID" &&
+                (order.displayFulfillmentStatus === "UNFULFILLED" ||
+                  order.displayFulfillmentStatus === "PARTIALLY_FULFILLED");
               const canCancel =
                 order.displayFinancialStatus !== "VOIDED" &&
                 order.displayFinancialStatus !== "REFUNDED";
@@ -430,6 +461,20 @@ export default function AdminOrdersPage() {
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
+                      {canMarkPaid && (
+                        <ActionButton
+                          onClick={(e: any) => {
+                            e.stopPropagation();
+                            setPaymentMethod("Pay In-Store (Cash)");
+                            setMarkPaidOrder(order);
+                          }}
+                          disabled={isBusy}
+                          variant="green"
+                          small
+                        >
+                          {isBusy ? "…" : "Mark Paid"}
+                        </ActionButton>
+                      )}
                       {canFulfill && (
                         <ActionButton
                           onClick={(e: any) => handleFulfill(e, order.id)}
@@ -656,6 +701,296 @@ export default function AdminOrdersPage() {
         </div>
       </div>
       <Toast toast={toast} />
+
+      {/* ── Mark as Paid Modal ── */}
+      {markPaidOrder && (
+        <>
+          <div
+            onClick={() => setMarkPaidOrder(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(6px)",
+              zIndex: 99998,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(420px, calc(100vw - 48px))",
+              background: "#0d1117",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "18px",
+              padding: "28px",
+              zIndex: 99999,
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "12px" }}
+              >
+                <div
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "10px",
+                    background: "rgba(74,222,128,0.08)",
+                    border: "1px solid rgba(74,222,128,0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#4ade80"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <path d="M2 10h20" />
+                  </svg>
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "8px",
+                      fontWeight: 800,
+                      letterSpacing: "0.22em",
+                      textTransform: "uppercase",
+                      color: "rgba(240,244,248,0.3)",
+                      margin: "0 0 3px",
+                    }}
+                  >
+                    Confirm Payment
+                  </p>
+                  <h3
+                    style={{
+                      fontFamily: "Bebas Neue, sans-serif",
+                      fontSize: "1.5rem",
+                      letterSpacing: "0.05em",
+                      color: "#f0f4f8",
+                      margin: 0,
+                    }}
+                  >
+                    {markPaidOrder.name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setMarkPaidOrder(null)}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "rgba(240,244,248,0.4)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "16px",
+                  flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Amount */}
+            <div
+              style={{
+                background: "rgba(74,222,128,0.04)",
+                border: "1px solid rgba(74,222,128,0.12)",
+                borderRadius: "12px",
+                padding: "14px 18px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "rgba(240,244,248,0.35)",
+                }}
+              >
+                Amount Due
+              </span>
+              <span
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.6rem",
+                  letterSpacing: "0.06em",
+                  color: "#4ade80",
+                }}
+              >
+                {formatPrice(
+                  markPaidOrder.totalPriceSet.shopMoney.amount,
+                  markPaidOrder.totalPriceSet.shopMoney.currencyCode,
+                )}
+              </span>
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(240,244,248,0.3)",
+                  margin: "0 0 10px",
+                }}
+              >
+                Payment Method
+              </p>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+              >
+                {(
+                  [
+                    "Pay In-Store (Cash)",
+                    "GCash",
+                    "Cash on Delivery (COD)",
+                    "Other",
+                  ] as PaymentMethod[]
+                ).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setPaymentMethod(m)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "11px 14px",
+                      background:
+                        paymentMethod === m
+                          ? "rgba(74,222,128,0.06)"
+                          : "rgba(255,255,255,0.02)",
+                      border: `1px solid ${paymentMethod === m ? "rgba(74,222,128,0.25)" : "rgba(255,255,255,0.06)"}`,
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      width: "100%",
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "50%",
+                        border: `2px solid ${paymentMethod === m ? "#4ade80" : "rgba(255,255,255,0.15)"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        transition: "border-color 0.12s",
+                      }}
+                    >
+                      {paymentMethod === m && (
+                        <div
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            background: "#4ade80",
+                          }}
+                        />
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        color:
+                          paymentMethod === m
+                            ? "#4ade80"
+                            : "rgba(240,244,248,0.5)",
+                      }}
+                    >
+                      {m}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => setMarkPaidOrder(null)}
+                style={{
+                  flex: 1,
+                  padding: "13px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "10px",
+                  color: "rgba(240,244,248,0.4)",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() =>
+                  handleMarkAsPaid(markPaidOrder.id, paymentMethod)
+                }
+                style={{
+                  flex: 2,
+                  padding: "13px",
+                  background: "#4ade80",
+                  border: "none",
+                  borderRadius: "10px",
+                  color: "#0d1117",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

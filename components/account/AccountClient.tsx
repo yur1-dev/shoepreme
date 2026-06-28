@@ -596,9 +596,224 @@ function OrdersSection({
 function OrderDetail({ order }: { order: Order }) {
   const items = order.lineItems.edges.map((e) => e.node);
   const addr = order.shippingAddress;
+  const isPending = order.financialStatus === "PENDING";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+      {/* ── Payment Due Banner ── */}
+      {isPending && (
+        <div
+          style={{
+            background: "rgba(232,168,48,0.06)",
+            border: "1px solid rgba(232,168,48,0.2)",
+            borderRadius: "16px",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "10px",
+                  background: "rgba(232,168,48,0.12)",
+                  border: "1px solid rgba(232,168,48,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#e8a830"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <path d="M2 10h20" />
+                </svg>
+              </div>
+              <div>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "8px",
+                    fontWeight: 800,
+                    letterSpacing: "0.22em",
+                    textTransform: "uppercase",
+                    color: "rgba(232,168,48,0.6)",
+                    margin: "0 0 2px",
+                  }}
+                >
+                  Payment Due
+                </p>
+                <p
+                  style={{
+                    fontFamily: "Bebas Neue, sans-serif",
+                    fontSize: "1.4rem",
+                    letterSpacing: "0.06em",
+                    color: "#e8a830",
+                    margin: 0,
+                  }}
+                >
+                  {formatPrice(
+                    order.currentTotalPrice.amount,
+                    order.currentTotalPrice.currencyCode,
+                  )}
+                </p>
+              </div>
+            </div>
+            <span
+              style={{
+                fontFamily: "monospace",
+                fontSize: "8px",
+                fontWeight: 800,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "#e8a830",
+                background: "rgba(232,168,48,0.1)",
+                border: "1px solid rgba(232,168,48,0.25)",
+                borderRadius: "6px",
+                padding: "4px 10px",
+              }}
+            >
+              Awaiting Payment
+            </span>
+          </div>
+
+          {/* Payment methods */}
+          <div>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: "8px",
+                fontWeight: 800,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "rgba(245,247,249,0.3)",
+                margin: "0 0 10px",
+              }}
+            >
+              How to Pay
+            </p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {[
+                {
+                  label: "GCash",
+                  icon: (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <rect x="5" y="2" width="14" height="20" rx="2" />
+                      <path d="M12 18h.01" />
+                    </svg>
+                  ),
+                },
+                {
+                  label: "Cash on Delivery",
+                  icon: (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <rect x="1" y="3" width="15" height="13" rx="1" />
+                      <path d="M16 8h4l3 3v5h-7V8z" />
+                    </svg>
+                  ),
+                },
+                {
+                  label: "Pay In-Store",
+                  icon: (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                  ),
+                },
+              ].map((method) => (
+                <div
+                  key={method.label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "7px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    color: "rgba(245,247,249,0.6)",
+                  }}
+                >
+                  {method.icon}
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {method.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Note */}
+          <p
+            style={{
+              fontFamily: "monospace",
+              fontSize: "9px",
+              color: "rgba(245,247,249,0.3)",
+              letterSpacing: "0.04em",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            Your order is confirmed and reserved. Complete payment using any
+            method above to proceed with fulfillment.
+          </p>
+        </div>
+      )}
+
       {/* Items */}
       <div>
         <p
