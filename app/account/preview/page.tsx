@@ -1,26 +1,8 @@
-// app/account/preview/page.tsx
 // DEV ONLY — remove before production
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { getCustomer } from "@/lib/shopify-customer";
 import AccountClient from "@/components/account/AccountClient";
 import Navbar from "@/components/layout/Navbar";
-import SignOutButton from "@/components/account/SignOutButton";
 
-export default async function AccountPreview() {
-  const session = await auth();
-  if (!session?.user) redirect("/account/login");
-
-  const token = session.shopifyAccessToken;
-  const customer = token ? await getCustomer(token) : null;
-
-  const displayName =
-    session.shopifyCustomerName?.split(" ")[0] ||
-    customer?.firstName ||
-    session.user.name?.split(" ")[0] ||
-    session.user.email?.split("@")[0] ||
-    "Crew";
-
+export default function AccountPreview() {
   return (
     <div
       style={{
@@ -45,15 +27,32 @@ export default async function AccountPreview() {
       <Navbar />
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
         <AccountClient
-          customerId={customer?.id ?? ""}
-          shopifyToken={token ?? ""}
+          customerId="preview-customer-id"
           customer={{
-            displayName,
-            email: customer?.email ?? session.user.email ?? undefined,
-            phone: customer?.phone ?? undefined,
-            numberOfOrders: customer?.numberOfOrders ?? 0,
+            displayName: "Marc",
+            email: "marc@shoepreme.com",
+            phone: "+639123456789",
+            numberOfOrders: 3,
           }}
-          SignOutButton={<SignOutButton />}
+          SignOutButton={
+            <button
+              style={{
+                fontFamily: "monospace",
+                fontSize: "9px",
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "rgba(245,247,249,0.35)",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "7px",
+                padding: "7px 12px",
+                cursor: "pointer",
+              }}
+            >
+              Sign Out
+            </button>
+          }
         />
       </div>
     </div>

@@ -598,6 +598,250 @@ function OrdersSection({
   );
 }
 
+// ─── Cancel Order Button ──────────────────────────────────────────────────────
+function CancelOrderButton({ order }: { order: Order }) {
+  const [open, setOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/account-api/orders/${order.id}/cancel`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setCancelled(true);
+        setOpen(false);
+      }
+    } catch (err) {
+      console.error("Failed to cancel order", err);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  if (cancelled) {
+    return (
+      <div
+        style={{
+          background: "rgba(248,113,113,0.05)",
+          border: "1px solid rgba(248,113,113,0.2)",
+          borderRadius: "12px",
+          padding: "14px 18px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#f87171"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span
+          style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "rgba(248,113,113,0.8)",
+            letterSpacing: "0.06em",
+          }}
+        >
+          Cancellation request submitted.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          width: "100%",
+          padding: "14px",
+          background: "transparent",
+          border: "1px solid rgba(248,113,113,0.2)",
+          borderRadius: "12px",
+          color: "rgba(248,113,113,0.6)",
+          fontFamily: "monospace",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.2em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+          transition: "border-color 0.15s, color 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor =
+            "rgba(248,113,113,0.4)";
+          (e.currentTarget as HTMLButtonElement).style.color = "#f87171";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor =
+            "rgba(248,113,113,0.2)";
+          (e.currentTarget as HTMLButtonElement).style.color =
+            "rgba(248,113,113,0.6)";
+        }}
+      >
+        Cancel Order
+      </button>
+
+      {mounted &&
+        open &&
+        createPortal(
+          <>
+            <div
+              onClick={() => setOpen(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.75)",
+                backdropFilter: "blur(6px)",
+                zIndex: 99998,
+              }}
+            />
+            <div
+              style={{
+                position: "fixed",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: "min(380px, calc(100vw - 48px))",
+                background: "#0d1117",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "18px",
+                padding: "28px",
+                zIndex: 99999,
+              }}
+            >
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  background: "rgba(248,113,113,0.08)",
+                  border: "1px solid rgba(248,113,113,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "18px",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#f87171"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+              </div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.28em",
+                  textTransform: "uppercase",
+                  color: "rgba(248,113,113,0.5)",
+                  margin: "0 0 6px",
+                }}
+              >
+                Order #{order.orderNumber}
+              </p>
+              <h3
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.6rem",
+                  letterSpacing: "0.06em",
+                  color: "#f5f7f9",
+                  margin: "0 0 10px",
+                }}
+              >
+                Cancel this order?
+              </h3>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  color: "rgba(245,247,249,0.4)",
+                  letterSpacing: "0.04em",
+                  margin: "0 0 24px",
+                  lineHeight: 1.7,
+                }}
+              >
+                This will send a cancellation request to the store. If payment
+                hasn't been made yet, the order will be voided. This action
+                cannot be undone.
+              </p>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  onClick={() => setOpen(false)}
+                  disabled={cancelling}
+                  style={{
+                    flex: 1,
+                    padding: "13px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "10px",
+                    color: "rgba(245,247,249,0.4)",
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    cursor: cancelling ? "default" : "pointer",
+                    opacity: cancelling ? 0.5 : 1,
+                  }}
+                >
+                  Keep Order
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                  style={{
+                    flex: 1,
+                    padding: "13px",
+                    background: "rgba(248,113,113,0.1)",
+                    border: "1px solid rgba(248,113,113,0.3)",
+                    borderRadius: "10px",
+                    color: "#f87171",
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    cursor: cancelling ? "default" : "pointer",
+                    opacity: cancelling ? 0.6 : 1,
+                  }}
+                >
+                  {cancelling ? "Cancelling…" : "Yes, Cancel"}
+                </button>
+              </div>
+            </div>
+          </>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 // ─── Order Detail (inline panel) ──────────────────────────────────────────────
 function OrderDetail({ order }: { order: Order }) {
   const items = order.lineItems.edges.map((e) => e.node);
@@ -949,8 +1193,9 @@ function OrderDetail({ order }: { order: Order }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gridTemplateColumns: "3fr 2fr",
           gap: "16px",
+          alignItems: "start",
         }}
       >
         {/* ── Left column: mini map ON TOP of shipping address ── */}
@@ -1326,9 +1571,9 @@ function OrderDetail({ order }: { order: Order }) {
           </div>
         </div>
       </div>
-      {/* Track CTA — only onClick added, everything else unchanged */}
+      {/* Track CTA */}
       <button
-        onClick={() => setTrackingOpen(true)} // ← ONLY CHANGE
+        onClick={() => setTrackingOpen(true)}
         style={{
           width: "100%",
           padding: "16px",
@@ -1346,6 +1591,9 @@ function OrderDetail({ order }: { order: Order }) {
       >
         Track Order →
       </button>
+
+      {/* Cancel Order — only for pending/unfulfilled orders */}
+      {isPending && <CancelOrderButton order={order} />}
       {/* Tracking modal — rendered via portal so it escapes any overflow:hidden */}
       {trackingOpen && (
         <TrackOrderModal order={order} onClose={() => setTrackingOpen(false)} />
@@ -1655,7 +1903,7 @@ function AddressFormDrawer({
     </>
   );
 }
-/ ─── STEP 2: Add this component before OrderDetail ────────────────────────────/;
+// ─── TrackOrderModal ──────────────────────────────────────────────────────────
 function TrackOrderModal({
   order,
   onClose,
@@ -1663,53 +1911,63 @@ function TrackOrderModal({
   order: Order;
   onClose: () => void;
 }) {
-  const [customerCoords, setCustomerCoords] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [locationStatus, setLocationStatus] = useState<
-    "idle" | "loading" | "granted" | "denied"
-  >("idle");
-
   const addr = order.shippingAddress;
 
-  function requestLocation() {
-    if (!navigator.geolocation) {
-      setLocationStatus("denied");
-      return;
-    }
-    setLocationStatus("loading");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCustomerCoords({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-        setLocationStatus("granted");
-      },
-      () => setLocationStatus("denied"),
-      { timeout: 10000 },
-    );
-  }
+  const isPaid = order.financialStatus === "PAID";
+  const isPending = order.financialStatus === "PENDING";
+  const isVoided =
+    order.financialStatus === "VOIDED" || order.financialStatus === "REFUNDED";
+  const isFulfilled = order.fulfillmentStatus === "FULFILLED";
+  const isInProgress =
+    order.fulfillmentStatus === "IN_PROGRESS" ||
+    order.fulfillmentStatus === "PARTIALLY_FULFILLED";
 
-  // Build Google Maps embed URL — shows route if customer location granted,
-  // otherwise just shows the shop pin
-  const mapSrc =
-    locationStatus === "granted" && customerCoords
-      ? `https://www.google.com/maps/embed/v1/directions?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ""}&origin=${customerCoords.lat},${customerCoords.lng}&destination=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}&mode=driving`
-      : `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ""}&q=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}&zoom=15`;
+  type StageStatus = "done" | "active" | "pending";
 
-  // Fallback iframe using OpenStreetMap (no API key needed)
-  const osmSrc =
-    locationStatus === "granted" && customerCoords
-      ? `https://www.openstreetmap.org/export/embed.html?bbox=${Math.min(customerCoords.lng, SHOP_LOCATION.lng) - 0.05},${Math.min(customerCoords.lat, SHOP_LOCATION.lat) - 0.05},${Math.max(customerCoords.lng, SHOP_LOCATION.lng) + 0.05},${Math.max(customerCoords.lat, SHOP_LOCATION.lat) + 0.05}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`
-      : `https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.02},${SHOP_LOCATION.lat - 0.02},${SHOP_LOCATION.lng + 0.02},${SHOP_LOCATION.lat + 0.02}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`;
+  const stages: {
+    label: string;
+    sub: string;
+    time?: string;
+    status: StageStatus;
+  }[] = [
+    {
+      label: "Order Placed",
+      sub: "Your order has been received",
+      time: formatDate(order.processedAt, true),
+      status: "done",
+    },
+    {
+      label: "Payment Confirmed",
+      sub: isPending
+        ? "Awaiting your payment"
+        : isVoided
+          ? "Order voided"
+          : "Payment has been verified",
+      time: isPaid ? "Confirmed" : isPending ? "Pending" : undefined,
+      status: isPaid ? "done" : isPending ? "active" : "pending",
+    },
+    {
+      label: "Preparing Order",
+      sub: "Store is packing your items",
+      status:
+        isFulfilled || isInProgress ? "done" : isPaid ? "active" : "pending",
+    },
+    {
+      label: "Out for Delivery",
+      sub: "Your order is on the way",
+      status: isFulfilled ? "done" : isInProgress ? "active" : "pending",
+    },
+    {
+      label: "Delivered",
+      sub: "Order has been received",
+      status: isFulfilled ? "active" : "pending",
+    },
+  ];
 
-  const useGoogleMaps = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.02},${SHOP_LOCATION.lat - 0.02},${SHOP_LOCATION.lng + 0.02},${SHOP_LOCATION.lat + 0.02}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`;
 
   return createPortal(
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -1721,14 +1979,13 @@ function TrackOrderModal({
         }}
       />
 
-      {/* Modal */}
       <div
         style={{
           position: "fixed",
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: "min(680px, calc(100vw - 32px))",
+          width: "min(760px, calc(100vw - 32px))",
           maxHeight: "calc(100vh - 48px)",
           background: "#0d1117",
           border: "1px solid rgba(255,255,255,0.08)",
@@ -1745,7 +2002,7 @@ function TrackOrderModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "22px 24px",
+            padding: "20px 24px",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
             flexShrink: 0,
           }}
@@ -1797,120 +2054,122 @@ function TrackOrderModal({
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body — two-column */}
         <div
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "20px 24px 24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            minHeight: 0,
           }}
         >
-          {/* Shop pin info */}
+          {/* ── Left: Map + addresses ── */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: addr ? "1fr 1fr" : "1fr",
-              gap: "12px",
+              borderRight: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {/* Shop */}
+            {/* Map */}
             <div
-              style={{
-                background: "rgba(232,168,48,0.05)",
-                border: "1px solid rgba(232,168,48,0.2)",
-                borderRadius: "12px",
-                padding: "14px 16px",
-                display: "flex",
-                gap: "10px",
-                alignItems: "flex-start",
-              }}
+              style={{ position: "relative", height: "220px", flexShrink: 0 }}
             >
+              <iframe
+                src={osmSrc}
+                width="100%"
+                height="220"
+                style={{
+                  border: 0,
+                  display: "block",
+                  filter: "brightness(0.68) saturate(0.75)",
+                }}
+                loading="lazy"
+                title="Shop location"
+              />
+              {/* fade */}
               <div
                 style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "7px",
-                  background: "rgba(232,168,48,0.15)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: "60px",
+                  background:
+                    "linear-gradient(to top, rgba(13,17,23,0.95), transparent)",
+                  pointerEvents: "none",
+                }}
+              />
+              {/* pulsing pin */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -65%)",
+                  pointerEvents: "none",
                 }}
               >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#e8a830"
-                  strokeWidth="2"
-                >
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
-              <div>
-                <p
+                <div
                   style={{
-                    fontFamily: "monospace",
-                    fontSize: "8px",
-                    fontWeight: 800,
-                    letterSpacing: "0.2em",
-                    textTransform: "uppercase",
-                    color: "#e8a830",
-                    margin: "0 0 4px",
+                    position: "relative",
+                    width: "32px",
+                    height: "32px",
                   }}
                 >
-                  Shop Location
-                </p>
-                <p
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "#f5f7f9",
-                    margin: "0 0 2px",
-                  }}
-                >
-                  {SHOP_LOCATION.name}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "9px",
-                    color: "rgba(245,247,249,0.4)",
-                    margin: "0 0 4px",
-                    letterSpacing: "0.02em",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {SHOP_LOCATION.address}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "8px",
-                    color: "rgba(245,247,249,0.25)",
-                    margin: 0,
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {SHOP_LOCATION.lat.toFixed(4)}, {SHOP_LOCATION.lng.toFixed(4)}
-                </p>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: "50%",
+                      background: "rgba(232,168,48,0.22)",
+                      animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: "6px",
+                      borderRadius: "50%",
+                      background: "#e8a830",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="#0d1117"
+                    >
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      <polyline
+                        points="9 22 9 12 15 12 15 22"
+                        stroke="#0d1117"
+                        strokeWidth="1.5"
+                        fill="none"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Shipping address */}
-            {addr && (
+            {/* Shop + delivery info */}
+            <div
+              style={{
+                padding: "16px 20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                flex: 1,
+              }}
+            >
+              {/* Shop */}
               <div
                 style={{
-                  background: "rgba(74,127,165,0.05)",
-                  border: "1px solid rgba(74,127,165,0.2)",
-                  borderRadius: "12px",
-                  padding: "14px 16px",
                   display: "flex",
                   gap: "10px",
                   alignItems: "flex-start",
@@ -1918,10 +2177,11 @@ function TrackOrderModal({
               >
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "7px",
-                    background: "rgba(74,127,165,0.15)",
+                    width: "30px",
+                    height: "30px",
+                    borderRadius: "8px",
+                    background: "rgba(232,168,48,0.1)",
+                    border: "1px solid rgba(232,168,48,0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1929,318 +2189,345 @@ function TrackOrderModal({
                   }}
                 >
                   <svg
-                    width="13"
-                    height="13"
+                    width="12"
+                    height="12"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#4a7fa5"
+                    stroke="#e8a830"
                     strokeWidth="2"
                   >
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                    <circle cx="12" cy="10" r="3" />
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
                   </svg>
                 </div>
                 <div>
                   <p
                     style={{
                       fontFamily: "monospace",
-                      fontSize: "8px",
+                      fontSize: "7px",
                       fontWeight: 800,
                       letterSpacing: "0.2em",
                       textTransform: "uppercase",
-                      color: "#4a7fa5",
-                      margin: "0 0 4px",
+                      color: "#e8a830",
+                      margin: "0 0 3px",
                     }}
                   >
-                    Delivery Address
+                    Shop Origin
                   </p>
                   <p
                     style={{
                       fontFamily: "Poppins, sans-serif",
-                      fontSize: "11px",
+                      fontSize: "12px",
                       fontWeight: 600,
                       color: "#f5f7f9",
                       margin: "0 0 2px",
                     }}
                   >
-                    {addr.firstName} {addr.lastName}
+                    {SHOP_LOCATION.name}
                   </p>
                   <p
                     style={{
                       fontFamily: "monospace",
                       fontSize: "9px",
-                      color: "rgba(245,247,249,0.4)",
+                      color: "rgba(245,247,249,0.35)",
                       margin: 0,
-                      letterSpacing: "0.02em",
                       lineHeight: 1.5,
+                      letterSpacing: "0.02em",
                     }}
                   >
-                    {addr.address1}
-                    {addr.address2 ? `, ${addr.address2}` : ""}
-                    <br />
-                    {addr.city}, {addr.province} {addr.zip}
+                    {SHOP_LOCATION.address}
                   </p>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Location permission prompt */}
-          {locationStatus === "idle" && (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: "12px",
-                padding: "16px 18px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "10px" }}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="rgba(245,247,249,0.4)"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v4M12 16h.01" />
-                </svg>
-                <p
+              {/* Delivery address */}
+              {addr && (
+                <div
                   style={{
-                    fontFamily: "monospace",
-                    fontSize: "10px",
-                    color: "rgba(245,247,249,0.4)",
-                    letterSpacing: "0.04em",
-                    margin: 0,
+                    display: "flex",
+                    gap: "10px",
+                    alignItems: "flex-start",
+                    paddingTop: "12px",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
                   }}
                 >
-                  Share your location to see directions from where you are
-                </p>
-              </div>
-              <button
-                onClick={requestLocation}
+                  <div
+                    style={{
+                      width: "30px",
+                      height: "30px",
+                      borderRadius: "8px",
+                      background: "rgba(74,127,165,0.1)",
+                      border: "1px solid rgba(74,127,165,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#4a7fa5"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "7px",
+                        fontWeight: 800,
+                        letterSpacing: "0.2em",
+                        textTransform: "uppercase",
+                        color: "#4a7fa5",
+                        margin: "0 0 3px",
+                      }}
+                    >
+                      Delivery To
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: "Poppins, sans-serif",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#f5f7f9",
+                        margin: "0 0 2px",
+                      }}
+                    >
+                      {addr.firstName} {addr.lastName}
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "9px",
+                        color: "rgba(245,247,249,0.35)",
+                        margin: 0,
+                        lineHeight: 1.5,
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      {addr.address1}
+                      {addr.address2 ? `, ${addr.address2}` : ""}
+                      <br />
+                      {addr.city}, {addr.province} {addr.zip}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Open maps CTA */}
+
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "6px",
-                  background: "rgba(232,168,48,0.08)",
-                  border: "1px solid rgba(232,168,48,0.25)",
+                  padding: "10px",
+                  background: "rgba(232,168,48,0.06)",
+                  border: "1px solid rgba(232,168,48,0.18)",
                   borderRadius: "8px",
-                  padding: "8px 14px",
                   color: "#e8a830",
                   fontFamily: "monospace",
                   fontSize: "9px",
                   fontWeight: 700,
-                  letterSpacing: "0.16em",
+                  letterSpacing: "0.14em",
                   textTransform: "uppercase",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
+                  textDecoration: "none",
+                  marginTop: "auto",
                 }}
               >
                 <svg
-                  width="10"
-                  height="10"
+                  width="11"
+                  height="11"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
+                  strokeLinecap="round"
                 >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
-                Use My Location
-              </button>
+                Open in Google Maps
+              </a>
             </div>
-          )}
-
-          {locationStatus === "loading" && (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: "12px",
-                padding: "14px 18px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="rgba(232,168,48,0.6)"
-                strokeWidth="2"
-                style={{ animation: "spin 1s linear infinite" }}
-              >
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-              </svg>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "10px",
-                  color: "rgba(245,247,249,0.35)",
-                  letterSpacing: "0.06em",
-                  margin: 0,
-                }}
-              >
-                Getting your location…
-              </p>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            </div>
-          )}
-
-          {locationStatus === "denied" && (
-            <div
-              style={{
-                background: "rgba(248,113,113,0.04)",
-                border: "1px solid rgba(248,113,113,0.15)",
-                borderRadius: "12px",
-                padding: "14px 18px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#f87171"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M15 9l-6 6M9 9l6 6" />
-              </svg>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "10px",
-                  color: "rgba(248,113,113,0.7)",
-                  letterSpacing: "0.04em",
-                  margin: 0,
-                }}
-              >
-                Location access denied — showing shop location only
-              </p>
-            </div>
-          )}
-
-          {locationStatus === "granted" && customerCoords && (
-            <div
-              style={{
-                background: "rgba(74,222,128,0.04)",
-                border: "1px solid rgba(74,222,128,0.15)",
-                borderRadius: "12px",
-                padding: "14px 18px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#4ade80"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "10px",
-                  color: "rgba(74,222,128,0.8)",
-                  letterSpacing: "0.04em",
-                  margin: 0,
-                }}
-              >
-                Location found — showing directions to shop
-              </p>
-            </div>
-          )}
-
-          {/* Map */}
-          <div
-            style={{
-              borderRadius: "12px",
-              overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.07)",
-              height: "300px",
-              flexShrink: 0,
-            }}
-          >
-            <iframe
-              src={useGoogleMaps ? mapSrc : osmSrc}
-              width="100%"
-              height="100%"
-              style={{ border: 0, display: "block" }}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="Order tracking map"
-            />
           </div>
 
-          {/* Open in Google Maps CTA */}
-          <a
-            href={
-              locationStatus === "granted" && customerCoords
-                ? `https://www.google.com/maps/dir/${customerCoords.lat},${customerCoords.lng}/${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`
-                : `https://www.google.com/maps/search/?api=1&query=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
+          {/* ── Right: Order status timeline ── */}
+          <div
             style={{
+              padding: "24px",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              width: "100%",
-              padding: "14px",
-              background: "rgba(232,168,48,0.08)",
-              border: "1px solid rgba(232,168,48,0.25)",
-              borderRadius: "12px",
-              color: "#e8a830",
-              fontFamily: "monospace",
-              fontSize: "10px",
-              fontWeight: 700,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              textDecoration: "none",
-              boxSizing: "border-box",
+              flexDirection: "column",
             }}
           >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: "8px",
+                fontWeight: 800,
+                letterSpacing: "0.24em",
+                textTransform: "uppercase",
+                color: "rgba(245,247,249,0.25)",
+                margin: "0 0 4px",
+              }}
             >
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            Open in Google Maps
-          </a>
+              Delivery Info
+            </p>
+            <p
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "1.6rem",
+                letterSpacing: "0.06em",
+                color: "#f5f7f9",
+                margin: "0 0 6px",
+              }}
+            >
+              #{order.orderNumber}
+            </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginBottom: "28px",
+              }}
+            >
+              <StatusBadge label={order.financialStatus} />
+              <StatusBadge label={order.fulfillmentStatus} />
+            </div>
+
+            {/* Timeline */}
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+              {stages.map((stage, i) => {
+                const isLast = i === stages.length - 1;
+                const isDone = stage.status === "done";
+                const isActive = stage.status === "active";
+                const dotColor = isDone
+                  ? "#e8a830"
+                  : isActive
+                    ? "#e8a830"
+                    : "rgba(255,255,255,0.1)";
+                const lineColor = isDone
+                  ? "rgba(232,168,48,0.4)"
+                  : "rgba(255,255,255,0.07)";
+
+                return (
+                  <div
+                    key={stage.label}
+                    style={{ display: "flex", gap: "16px" }}
+                  >
+                    {/* Dot + connector line */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        flexShrink: 0,
+                        paddingTop: "2px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: isDone ? "10px" : isActive ? "12px" : "8px",
+                          height: isDone ? "10px" : isActive ? "12px" : "8px",
+                          borderRadius: "50%",
+                          background: dotColor,
+                          flexShrink: 0,
+                          boxShadow: isActive
+                            ? "0 0 0 4px rgba(232,168,48,0.12), 0 0 12px rgba(232,168,48,0.3)"
+                            : "none",
+                          border:
+                            isDone || isActive
+                              ? "none"
+                              : "1px solid rgba(255,255,255,0.12)",
+                          transition: "all 0.2s",
+                        }}
+                      />
+                      {!isLast && (
+                        <div
+                          style={{
+                            width: "1px",
+                            flex: 1,
+                            minHeight: "36px",
+                            background: lineColor,
+                            margin: "5px 0",
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Text content */}
+                    <div
+                      style={{
+                        paddingBottom: isLast ? "0" : "24px",
+                        flex: 1,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: "monospace",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                          color: isDone
+                            ? "#f5f7f9"
+                            : isActive
+                              ? "#e8a830"
+                              : "rgba(245,247,249,0.2)",
+                          margin: "0 0 3px",
+                        }}
+                      >
+                        {stage.label}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "monospace",
+                          fontSize: "9px",
+                          color: isDone
+                            ? "rgba(245,247,249,0.4)"
+                            : isActive
+                              ? "rgba(232,168,48,0.7)"
+                              : "rgba(245,247,249,0.15)",
+                          margin: stage.time ? "0 0 2px" : "0",
+                          letterSpacing: "0.04em",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {stage.sub}
+                      </p>
+                      {stage.time && (
+                        <p
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "8px",
+                            color: "rgba(245,247,249,0.25)",
+                            margin: 0,
+                            letterSpacing: "0.06em",
+                          }}
+                        >
+                          {stage.time}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
+
+        <style>{`@keyframes ping { 75%, 100% { transform: scale(1.9); opacity: 0; } }`}</style>
       </div>
     </>,
     document.body,
