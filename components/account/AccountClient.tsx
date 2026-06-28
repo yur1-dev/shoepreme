@@ -820,7 +820,6 @@ function OrderDetail({ order }: { order: Order }) {
           </p>
         </div>
       )}
-
       {/* Items */}
       <div>
         <p
@@ -946,57 +945,52 @@ function OrderDetail({ order }: { order: Order }) {
           ))}
         </div>
       </div>
-
+      {/* Address + Summary */}
+      // ─── Replace ONLY the "Address + Summary" section inside OrderDetail
+      ────────── // Paste this block to REPLACE the existing{" "}
+      {/* Address + Summary */} div. // Everything above (Items) and below
+      (Track CTA + modal) stays exactly the same.
       {/* Map Preview + Address + Summary */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {/* ── Left column: mini map ON TOP of shipping address ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-
-          {/* Mini map — clickable, same width as the shipping address card below */}
-          <button
-            onClick={() => setTrackingOpen(true)}
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderBottom: "none",
-              borderRadius: "14px 14px 0 0",
-              overflow: "hidden",
-              cursor: "pointer",
-              padding: 0,
-              width: "100%",
-              position: "relative",
-              transition: "border-color 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor =
-                "rgba(232,168,48,0.35)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor =
-                "rgba(255,255,255,0.07)";
-            }}
-          >
-            {/* Map iframe */}
-            <div style={{ height: "120px", position: "relative" }}>
-              <iframe
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.018},${SHOP_LOCATION.lat - 0.018},${SHOP_LOCATION.lng + 0.018},${SHOP_LOCATION.lat + 0.018}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`}
-                width="100%"
-                height="120"
-                style={{
-                  border: 0,
-                  display: "block",
-                  pointerEvents: "none",
-                  filter: "brightness(0.68) saturate(0.75)",
-                }}
-                loading="lazy"
-                title="Shop location preview"
-              />
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* ── Clickable mini map pin card ── */}
+        <button
+          onClick={() => setTrackingOpen(true)}
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "14px",
+            overflow: "hidden",
+            cursor: "pointer",
+            textAlign: "left",
+            padding: 0,
+            width: "100%",
+            position: "relative",
+            transition: "border-color 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              "rgba(232,168,48,0.35)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              "rgba(255,255,255,0.07)";
+          }}
+        >
+          {/* Map iframe — non-interactive (pointer-events:none so the button captures clicks) */}
+          <div style={{ height: "160px", position: "relative" }}>
+            <iframe
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.018},${SHOP_LOCATION.lat - 0.018},${SHOP_LOCATION.lng + 0.018},${SHOP_LOCATION.lat + 0.018}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`}
+              width="100%"
+              height="160"
+              style={{
+                border: 0,
+                display: "block",
+                pointerEvents: "none",
+                filter: "brightness(0.7) saturate(0.8)",
+              }}
+              loading="lazy"
+              title="Shop location preview"
+            />
 
               {/* Bottom fade into the card below */}
               <div
@@ -1012,47 +1006,61 @@ function OrderDetail({ order }: { order: Order }) {
                 }}
               />
 
-              {/* Pulsing shop pin */}
+            {/* Pulsing shop pin overlay */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -60%)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "4px",
+                pointerEvents: "none",
+              }}
+            >
+              {/* Pulse ring */}
               <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -65%)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  pointerEvents: "none",
-                }}
+                style={{ position: "relative", width: "32px", height: "32px" }}
               >
-                <div style={{ position: "relative", width: "28px", height: "28px" }}>
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      borderRadius: "50%",
-                      background: "rgba(232,168,48,0.25)",
-                      animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: "5px",
-                      borderRadius: "50%",
-                      background: "#e8a830",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background: "rgba(232,168,48,0.2)",
+                    animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "6px",
+                    borderRadius: "50%",
+                    background: "#e8a830",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="#0d1117"
                   >
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="#0d1117">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                      <polyline points="9 22 9 12 15 12 15 22" stroke="#0d1117" strokeWidth="1.5" fill="none" />
-                    </svg>
-                  </div>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    <polyline
+                      points="9 22 9 12 15 12 15 22"
+                      stroke="#0d1117"
+                      strokeWidth="1.5"
+                      fill="none"
+                    />
+                  </svg>
                 </div>
               </div>
+            </div>
 
               {/* "Tap to Track" pill — bottom right */}
               <div
@@ -1333,7 +1341,6 @@ function OrderDetail({ order }: { order: Order }) {
       >
         Track Order →
       </button>
-
       {/* Tracking modal — rendered via portal so it escapes any overflow:hidden */}
       {trackingOpen && (
         <TrackOrderModal order={order} onClose={() => setTrackingOpen(false)} />
@@ -3406,11 +3413,11 @@ export default function AccountClient({
           .mobile-account-header { display: block; }
           .account-layout { flex-direction: column !important; }
           .account-sidebar { display: none !important; }
-.account-content { padding: 20px 16px 80px !important; }
-          .mobile-hide-orders { display: none !important; }
-        }
-        @media (min-width: 769px) {
-          .account-sidebar { position: sticky !important; top: 100px !important; align-self: flex-start !important; }
+            .account-content { padding: 20px 16px 80px !important; }
+                      .mobile-hide-orders { display: none !important; }
+                    }
+            @media (min-width: 769px) {
+          .account-sidebar { position: sticky !important; top: 80px !important; align-self: flex-start !important; height: calc(100vh - 80px) !important; overflow-y: auto !important; }
         }
       `}</style>
 
