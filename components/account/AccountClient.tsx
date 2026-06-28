@@ -947,212 +947,189 @@ function OrderDetail({ order }: { order: Order }) {
         </div>
       </div>
 
-      {/* Address + Summary */}
-     // ─── Replace ONLY the "Address + Summary" section inside OrderDetail ──────────
-// Paste this block to REPLACE the existing {/* Address + Summary */} div.
-// Everything above (Items) and below (Track CTA + modal) stays exactly the same.
-
       {/* Map Preview + Address + Summary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* ── Left column: mini map ON TOP of shipping address ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
 
-        {/* ── Clickable mini map pin card ── */}
-        <button
-          onClick={() => setTrackingOpen(true)}
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: "14px",
-            overflow: "hidden",
-            cursor: "pointer",
-            textAlign: "left",
-            padding: 0,
-            width: "100%",
-            position: "relative",
-            transition: "border-color 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "rgba(232,168,48,0.35)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "rgba(255,255,255,0.07)";
-          }}
-        >
-          {/* Map iframe — non-interactive (pointer-events:none so the button captures clicks) */}
-          <div style={{ height: "160px", position: "relative" }}>
-            <iframe
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.018},${SHOP_LOCATION.lat - 0.018},${SHOP_LOCATION.lng + 0.018},${SHOP_LOCATION.lat + 0.018}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`}
-              width="100%"
-              height="160"
-              style={{ border: 0, display: "block", pointerEvents: "none", filter: "brightness(0.7) saturate(0.8)" }}
-              loading="lazy"
-              title="Shop location preview"
-            />
+          {/* Mini map — clickable, same width as the shipping address card below */}
+          <button
+            onClick={() => setTrackingOpen(true)}
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderBottom: "none",
+              borderRadius: "14px 14px 0 0",
+              overflow: "hidden",
+              cursor: "pointer",
+              padding: 0,
+              width: "100%",
+              position: "relative",
+              transition: "border-color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor =
+                "rgba(232,168,48,0.35)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor =
+                "rgba(255,255,255,0.07)";
+            }}
+          >
+            {/* Map iframe */}
+            <div style={{ height: "120px", position: "relative" }}>
+              <iframe
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.018},${SHOP_LOCATION.lat - 0.018},${SHOP_LOCATION.lng + 0.018},${SHOP_LOCATION.lat + 0.018}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`}
+                width="100%"
+                height="120"
+                style={{
+                  border: 0,
+                  display: "block",
+                  pointerEvents: "none",
+                  filter: "brightness(0.68) saturate(0.75)",
+                }}
+                loading="lazy"
+                title="Shop location preview"
+              />
 
-            {/* Dark gradient overlay at bottom */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: "60px",
-                background:
-                  "linear-gradient(to top, rgba(13,17,23,0.95), transparent)",
-                pointerEvents: "none",
-              }}
-            />
+              {/* Bottom fade into the card below */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: "48px",
+                  background:
+                    "linear-gradient(to top, rgba(13,17,23,0.92), transparent)",
+                  pointerEvents: "none",
+                }}
+              />
 
-            {/* Pulsing shop pin overlay */}
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -60%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "4px",
-                pointerEvents: "none",
-              }}
-            >
-              {/* Pulse ring */}
-              <div style={{ position: "relative", width: "32px", height: "32px" }}>
+              {/* Pulsing shop pin */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -65%)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <div style={{ position: "relative", width: "28px", height: "28px" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: "50%",
+                      background: "rgba(232,168,48,0.25)",
+                      animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: "5px",
+                      borderRadius: "50%",
+                      background: "#e8a830",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="#0d1117">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" stroke="#0d1117" strokeWidth="1.5" fill="none" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* "Tap to Track" pill — bottom right */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "8px",
+                  right: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  background: "rgba(13,17,23,0.85)",
+                  border: "1px solid rgba(232,168,48,0.3)",
+                  borderRadius: "20px",
+                  padding: "3px 8px",
+                  pointerEvents: "none",
+                }}
+              >
                 <div
                   style={{
-                    position: "absolute",
-                    inset: 0,
-                    borderRadius: "50%",
-                    background: "rgba(232,168,48,0.2)",
-                    animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "6px",
+                    width: "4px",
+                    height: "4px",
                     borderRadius: "50%",
                     background: "#e8a830",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "7px",
+                    fontWeight: 700,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "#e8a830",
                   }}
                 >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="#0d1117"
-                  >
-                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" stroke="#0d1117" strokeWidth="1.5" fill="none" />
-                  </svg>
-                </div>
+                  Tap to Track
+                </span>
+              </div>
+
+              {/* Shop name — bottom left */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "8px",
+                  left: "10px",
+                  pointerEvents: "none",
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "7px",
+                    fontWeight: 800,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "rgba(245,247,249,0.4)",
+                    margin: 0,
+                  }}
+                >
+                  {SHOP_LOCATION.name}
+                </p>
               </div>
             </div>
 
-            {/* "Click to track" pill — bottom right */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: "10px",
-                right: "12px",
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                background: "rgba(13,17,23,0.85)",
-                border: "1px solid rgba(232,168,48,0.3)",
-                borderRadius: "20px",
-                padding: "4px 10px",
-                pointerEvents: "none",
-              }}
-            >
-              <div
-                style={{
-                  width: "5px",
-                  height: "5px",
-                  borderRadius: "50%",
-                  background: "#e8a830",
-                  flexShrink: 0,
-                  animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "8px",
-                  fontWeight: 700,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "#e8a830",
-                }}
-              >
-                Tap to Track
-              </span>
-            </div>
+            <style>{`@keyframes ping { 75%, 100% { transform: scale(1.9); opacity: 0; } }`}</style>
+          </button>
 
-            {/* Shop label — bottom left */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: "10px",
-                left: "12px",
-                pointerEvents: "none",
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "8px",
-                  fontWeight: 800,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "rgba(245,247,249,0.5)",
-                  margin: 0,
-                }}
-              >
-                {SHOP_LOCATION.name}
-              </p>
-            </div>
-          </div>
-
-          <style>{`
-            @keyframes ping {
-              75%, 100% { transform: scale(1.8); opacity: 0; }
-            }
-          `}</style>
-        </button>
-
-        {/* ── Original Address + Summary grid (unchanged) ── */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "16px",
-          }}
-        >
+          {/* Shipping address card — flush under the map, shares border */}
           {addr && (
             <div>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "9px",
-                  fontWeight: 800,
-                  letterSpacing: "0.22em",
-                  textTransform: "uppercase",
-                  color: "rgba(245,247,249,0.3)",
-                  margin: "0 0 12px",
-                }}
-              >
-                Shipping Address
-              </p>
               <div
                 style={{
                   background: "rgba(255,255,255,0.02)",
                   border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: "14px",
+                  borderTop: "1px solid rgba(255,255,255,0.04)",
+                  borderRadius: "0 0 14px 14px",
                   padding: "18px 20px",
                   display: "flex",
                   gap: "12px",
@@ -1171,6 +1148,19 @@ function OrderDetail({ order }: { order: Order }) {
                   <circle cx="12" cy="10" r="3" />
                 </svg>
                 <div>
+                  <p
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "8px",
+                      fontWeight: 800,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "rgba(245,247,249,0.25)",
+                      margin: "0 0 6px",
+                    }}
+                  >
+                    Shipping Address
+                  </p>
                   <p
                     style={{
                       fontFamily: "Poppins, sans-serif",
@@ -1221,102 +1211,104 @@ function OrderDetail({ order }: { order: Order }) {
               </div>
             </div>
           )}
-          <div>
-            <p
-              style={{
-                fontFamily: "monospace",
-                fontSize: "9px",
-                fontWeight: 800,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                color: "rgba(245,247,249,0.3)",
-                margin: "0 0 12px",
-              }}
-            >
-              Summary
-            </p>
-            <div
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: "14px",
-                padding: "18px 20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-              }}
-            >
-              {[
-                { label: "Subtotal", value: order.subtotalPrice },
-                { label: "Shipping", value: order.totalShippingPrice },
-              ].map(({ label, value }) =>
-                value ? (
-                  <div
-                    key={label}
+        </div>
+
+        {/* ── Right column: Summary (unchanged) ── */}
+        <div>
+          <p
+            style={{
+              fontFamily: "monospace",
+              fontSize: "9px",
+              fontWeight: 800,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: "rgba(245,247,249,0.3)",
+              margin: "0 0 12px",
+            }}
+          >
+            Summary
+          </p>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: "14px",
+              padding: "18px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            {[
+              { label: "Subtotal", value: order.subtotalPrice },
+              { label: "Shipping", value: order.totalShippingPrice },
+            ].map(({ label, value }) =>
+              value ? (
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.35)",
+                      letterSpacing: "0.08em",
                     }}
                   >
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: "10px",
-                        color: "rgba(245,247,249,0.35)",
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      {label}
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: "11px",
-                        color: "rgba(245,247,249,0.6)",
-                      }}
-                    >
-                      {formatPrice(value.amount, value.currencyCode)}
-                    </span>
-                  </div>
-                ) : null,
-              )}
-              <div
-                style={{ height: "1px", background: "rgba(255,255,255,0.06)" }}
-              />
-              <div
+                    {label}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "11px",
+                      color: "rgba(245,247,249,0.6)",
+                    }}
+                  >
+                    {formatPrice(value.amount, value.currencyCode)}
+                  </span>
+                </div>
+              ) : null,
+            )}
+            <div
+              style={{ height: "1px", background: "rgba(255,255,255,0.06)" }}
+            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,247,249,0.5)",
                 }}
               >
-                <span
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "10px",
-                    fontWeight: 800,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: "rgba(245,247,249,0.5)",
-                  }}
-                >
-                  Total
-                </span>
-                <span
-                  style={{
-                    fontFamily: "Bebas Neue, sans-serif",
-                    fontSize: "1.5rem",
-                    letterSpacing: "0.06em",
-                    color: "#e8a830",
-                  }}
-                >
-                  {formatPrice(
-                    order.currentTotalPrice.amount,
-                    order.currentTotalPrice.currencyCode,
-                  )}
-                </span>
-              </div>
+                Total
+              </span>
+              <span
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.5rem",
+                  letterSpacing: "0.06em",
+                  color: "#e8a830",
+                }}
+              >
+                {formatPrice(
+                  order.currentTotalPrice.amount,
+                  order.currentTotalPrice.currencyCode,
+                )}
+              </span>
             </div>
           </div>
         </div>
