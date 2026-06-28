@@ -602,48 +602,255 @@ function OrdersSection({
 function OrderDetail({ order }: { order: Order }) {
   const items = order.lineItems.edges.map((e) => e.node);
   const addr = order.shippingAddress;
-  const [trackingOpen, setTrackingOpen] = useState(false); // ← ADD
- 
+  const isPending = order.financialStatus === "PENDING";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+      {/* ── Payment Due Banner ── */}
+      {isPending && (
+        <div
+          style={{
+            background: "rgba(232,168,48,0.06)",
+            border: "1px solid rgba(232,168,48,0.2)",
+            borderRadius: "16px",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "10px",
+                  background: "rgba(232,168,48,0.12)",
+                  border: "1px solid rgba(232,168,48,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#e8a830"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <path d="M2 10h20" />
+                </svg>
+              </div>
+              <div>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "8px",
+                    fontWeight: 800,
+                    letterSpacing: "0.22em",
+                    textTransform: "uppercase",
+                    color: "rgba(232,168,48,0.6)",
+                    margin: "0 0 2px",
+                  }}
+                >
+                  Payment Due
+                </p>
+                <p
+                  style={{
+                    fontFamily: "Bebas Neue, sans-serif",
+                    fontSize: "1.4rem",
+                    letterSpacing: "0.06em",
+                    color: "#e8a830",
+                    margin: 0,
+                  }}
+                >
+                  {formatPrice(
+                    order.currentTotalPrice.amount,
+                    order.currentTotalPrice.currencyCode,
+                  )}
+                </p>
+              </div>
+            </div>
+            <span
+              style={{
+                fontFamily: "monospace",
+                fontSize: "8px",
+                fontWeight: 800,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "#e8a830",
+                background: "rgba(232,168,48,0.1)",
+                border: "1px solid rgba(232,168,48,0.25)",
+                borderRadius: "6px",
+                padding: "4px 10px",
+              }}
+            >
+              Awaiting Payment
+            </span>
+          </div>
+
+          {/* Payment methods */}
+          <div>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: "8px",
+                fontWeight: 800,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "rgba(245,247,249,0.3)",
+                margin: "0 0 10px",
+              }}
+            >
+              How to Pay
+            </p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {[
+                {
+                  label: "GCash",
+                  icon: (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <rect x="5" y="2" width="14" height="20" rx="2" />
+                      <path d="M12 18h.01" />
+                    </svg>
+                  ),
+                },
+                {
+                  label: "Cash on Delivery",
+                  icon: (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <rect x="1" y="3" width="15" height="13" rx="1" />
+                      <path d="M16 8h4l3 3v5h-7V8z" />
+                    </svg>
+                  ),
+                },
+                {
+                  label: "Pay In-Store",
+                  icon: (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                  ),
+                },
+              ].map((method) => (
+                <div
+                  key={method.label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "7px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    color: "rgba(245,247,249,0.6)",
+                  }}
+                >
+                  {method.icon}
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {method.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Note */}
+          <p
+            style={{
+              fontFamily: "monospace",
+              fontSize: "9px",
+              color: "rgba(245,247,249,0.3)",
+              letterSpacing: "0.04em",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            Your order is confirmed and reserved. Complete payment using any
+            method above to proceed with fulfillment.
+          </p>
+        </div>
+      )}
+
       {/* Items */}
       <div>
         <p
           style={{
-            fontFamily: "monospace",
-            fontSize: "9px",
-            fontWeight: 800,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            color: "rgba(245,247,249,0.3)",
-            margin: "0 0 12px",
+            background: "rgba(232,168,48,0.06)",
+            border: "1px solid rgba(232,168,48,0.2)",
+            borderRadius: "16px",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
           }}
         >
-          Items ({items.length})
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {items.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                gap: "16px",
-                alignItems: "center",
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: "14px",
-                padding: "16px",
-              }}
-            >
+          {/* Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <div
                 style={{
-                  width: "64px",
-                  height: "64px",
+                  width: "36px",
+                  height: "36px",
                   borderRadius: "10px",
-                  overflow: "hidden",
-                  flexShrink: 0,
-                  background: "rgba(74,127,165,0.1)",
-                  border: "1px solid rgba(74,127,165,0.2)",
+                  background: "rgba(232,168,48,0.12)",
+                  border: "1px solid rgba(232,168,48,0.25)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -653,57 +860,175 @@ function OrderDetail({ order }: { order: Order }) {
                   <img
                     src={item.variant.image.url}
                     alt={item.title}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
                   />
                 ) : (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(74,127,165,0.5)" strokeWidth="1.5">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="rgba(74,127,165,0.5)"
+                    strokeWidth="1.5"
+                  >
                     <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
                 )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontFamily: "Poppins, sans-serif", fontSize: "13px", fontWeight: 600, color: "#f5f7f9", margin: "0 0 4px" }}>
+                <p
+                  style={{
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#f5f7f9",
+                    margin: "0 0 4px",
+                  }}
+                >
                   {item.title}
                 </p>
-                <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.4)", margin: "0 0 3px", letterSpacing: "0.04em" }}>
-                  {item.variant?.selectedOptions?.map((o) => o.value).join(" · ")}
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    color: "rgba(245,247,249,0.4)",
+                    margin: "0 0 3px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {item.variant?.selectedOptions
+                    ?.map((o) => o.value)
+                    .join(" · ")}
                 </p>
-                <p style={{ fontFamily: "monospace", fontSize: "9px", color: "rgba(245,247,249,0.25)", margin: 0 }}>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "9px",
+                    color: "rgba(245,247,249,0.25)",
+                    margin: 0,
+                  }}
+                >
                   Qty: {item.quantity}
                 </p>
               </div>
-              <p style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "1.1rem", letterSpacing: "0.06em", color: "#e8a830", margin: 0, flexShrink: 0 }}>
+              <p
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.1rem",
+                  letterSpacing: "0.06em",
+                  color: "#e8a830",
+                  margin: 0,
+                  flexShrink: 0,
+                }}
+              >
                 {item.variant?.price
-                  ? formatPrice((parseFloat(item.variant.price.amount) * item.quantity).toString(), item.variant.price.currencyCode)
+                  ? formatPrice(
+                      (
+                        parseFloat(item.variant.price.amount) * item.quantity
+                      ).toString(),
+                      item.variant.price.currencyCode,
+                    )
                   : "—"}
               </p>
             </div>
           ))}
         </div>
       </div>
- 
+
       {/* Address + Summary */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "16px",
+        }}
+      >
         {addr && (
           <div>
-            <p style={{ fontFamily: "monospace", fontSize: "9px", fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(245,247,249,0.3)", margin: "0 0 12px" }}>
+            <p
+              style={{
+                fontFamily: "monospace",
+                fontSize: "9px",
+                fontWeight: 800,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "rgba(245,247,249,0.3)",
+                margin: "0 0 12px",
+              }}
+            >
               Shipping Address
             </p>
-            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px", padding: "18px 20px", display: "flex", gap: "12px" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(232,168,48,0.6)" strokeWidth="2" style={{ marginTop: "2px", flexShrink: 0 }}>
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
+            <div
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: "14px",
+                padding: "18px 20px",
+                display: "flex",
+                gap: "12px",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="rgba(232,168,48,0.6)"
+                strokeWidth="2"
+                style={{ marginTop: "2px", flexShrink: 0 }}
+              >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                <circle cx="12" cy="10" r="3" />
               </svg>
               <div>
-                <p style={{ fontFamily: "Poppins, sans-serif", fontSize: "12px", fontWeight: 600, color: "#f5f7f9", margin: "0 0 5px" }}>
+                <p
+                  style={{
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#f5f7f9",
+                    margin: "0 0 5px",
+                  }}
+                >
                   {addr.firstName} {addr.lastName}
                 </p>
-                <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.4)", margin: "0 0 2px", letterSpacing: "0.03em", lineHeight: 1.5 }}>
-                  {addr.address1}{addr.address2 ? `, ${addr.address2}` : ""}
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    color: "rgba(245,247,249,0.4)",
+                    margin: "0 0 2px",
+                    letterSpacing: "0.03em",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {addr.address1}
+                  {addr.address2 ? `, ${addr.address2}` : ""}
                 </p>
-                <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.4)", margin: "0 0 2px", letterSpacing: "0.03em" }}>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    color: "rgba(245,247,249,0.4)",
+                    margin: "0 0 2px",
+                    letterSpacing: "0.03em",
+                  }}
+                >
                   {addr.city}, {addr.province} {addr.zip}
                 </p>
-                <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.3)", margin: 0, letterSpacing: "0.03em" }}>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "10px",
+                    color: "rgba(245,247,249,0.3)",
+                    margin: 0,
+                    letterSpacing: "0.03em",
+                  }}
+                >
                   {addr.phone}
                 </p>
               </div>
@@ -711,18 +1036,62 @@ function OrderDetail({ order }: { order: Order }) {
           </div>
         )}
         <div>
-          <p style={{ fontFamily: "monospace", fontSize: "9px", fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(245,247,249,0.3)", margin: "0 0 12px" }}>
+          <p
+            style={{
+              fontFamily: "monospace",
+              fontSize: "9px",
+              fontWeight: 800,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: "rgba(245,247,249,0.3)",
+              margin: "0 0 12px",
+            }}
+          >
             Summary
           </p>
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px", padding: "18px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: "14px",
+              padding: "18px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
             {[
               { label: "Subtotal", value: order.subtotalPrice },
               { label: "Shipping", value: order.totalShippingPrice },
             ].map(({ label, value }) =>
               value ? (
-                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.35)", letterSpacing: "0.08em" }}>{label}</span>
-                  <span style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(245,247,249,0.6)" }}>{formatPrice(value.amount, value.currencyCode)}</span>
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.35)",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "11px",
+                      color: "rgba(245,247,249,0.6)",
+                    }}
+                  >
+                    {formatPrice(value.amount, value.currencyCode)}
+                  </span>
                 </div>
               ) : null,
             )}
