@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 const SHOP_LOCATION = {
-  lat: 14.8185,
-  lng: 121.0452,
+  lat: 6.1164,
+  lng: 125.1716,
   name: "Shoepreme",
-  address: "San Jose del Monte, Bulacan, Philippines",
+  address: "Conel - Olympog Rd, General Santos City, South Cotabato",
 };
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Section = "orders" | "addresses" | "recently-viewed" | "profile";
@@ -820,7 +820,6 @@ function OrderDetail({ order }: { order: Order }) {
           </p>
         </div>
       )}
-
       {/* Items */}
       <div>
         <p
@@ -946,16 +945,291 @@ function OrderDetail({ order }: { order: Order }) {
           ))}
         </div>
       </div>
-
       {/* Address + Summary */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {addr && (
+      // ─── Replace ONLY the "Address + Summary" section inside OrderDetail
+      ────────── // Paste this block to REPLACE the existing{" "}
+      {/* Address + Summary */} div. // Everything above (Items) and below
+      (Track CTA + modal) stays exactly the same.
+      {/* Map Preview + Address + Summary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* ── Clickable mini map pin card ── */}
+        <button
+          onClick={() => setTrackingOpen(true)}
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "14px",
+            overflow: "hidden",
+            cursor: "pointer",
+            textAlign: "left",
+            padding: 0,
+            width: "100%",
+            position: "relative",
+            transition: "border-color 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              "rgba(232,168,48,0.35)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor =
+              "rgba(255,255,255,0.07)";
+          }}
+        >
+          {/* Map iframe — non-interactive (pointer-events:none so the button captures clicks) */}
+          <div style={{ height: "160px", position: "relative" }}>
+            <iframe
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.018},${SHOP_LOCATION.lat - 0.018},${SHOP_LOCATION.lng + 0.018},${SHOP_LOCATION.lat + 0.018}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`}
+              width="100%"
+              height="160"
+              style={{
+                border: 0,
+                display: "block",
+                pointerEvents: "none",
+                filter: "brightness(0.7) saturate(0.8)",
+              }}
+              loading="lazy"
+              title="Shop location preview"
+            />
+
+            {/* Dark gradient overlay at bottom */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: "60px",
+                background:
+                  "linear-gradient(to top, rgba(13,17,23,0.95), transparent)",
+                pointerEvents: "none",
+              }}
+            />
+
+            {/* Pulsing shop pin overlay */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -60%)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "4px",
+                pointerEvents: "none",
+              }}
+            >
+              {/* Pulse ring */}
+              <div
+                style={{ position: "relative", width: "32px", height: "32px" }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background: "rgba(232,168,48,0.2)",
+                    animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "6px",
+                    borderRadius: "50%",
+                    background: "#e8a830",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="#0d1117"
+                  >
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    <polyline
+                      points="9 22 9 12 15 12 15 22"
+                      stroke="#0d1117"
+                      strokeWidth="1.5"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* "Click to track" pill — bottom right */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "10px",
+                right: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                background: "rgba(13,17,23,0.85)",
+                border: "1px solid rgba(232,168,48,0.3)",
+                borderRadius: "20px",
+                padding: "4px 10px",
+                pointerEvents: "none",
+              }}
+            >
+              <div
+                style={{
+                  width: "5px",
+                  height: "5px",
+                  borderRadius: "50%",
+                  background: "#e8a830",
+                  flexShrink: 0,
+                  animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "#e8a830",
+                }}
+              >
+                Tap to Track
+              </span>
+            </div>
+
+            {/* Shop label — bottom left */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "10px",
+                left: "12px",
+                pointerEvents: "none",
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,247,249,0.5)",
+                  margin: 0,
+                }}
+              >
+                {SHOP_LOCATION.name}
+              </p>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes ping {
+              75%, 100% { transform: scale(1.8); opacity: 0; }
+            }
+          `}</style>
+        </button>
+
+        {/* ── Original Address + Summary grid (unchanged) ── */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "16px",
+          }}
+        >
+          {addr && (
+            <div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,247,249,0.3)",
+                  margin: "0 0 12px",
+                }}
+              >
+                Shipping Address
+              </p>
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: "14px",
+                  padding: "18px 20px",
+                  display: "flex",
+                  gap: "12px",
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="rgba(232,168,48,0.6)"
+                  strokeWidth="2"
+                  style={{ marginTop: "2px", flexShrink: 0 }}
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "Poppins, sans-serif",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#f5f7f9",
+                      margin: "0 0 5px",
+                    }}
+                  >
+                    {addr.firstName} {addr.lastName}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.4)",
+                      margin: "0 0 2px",
+                      letterSpacing: "0.03em",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {addr.address1}
+                    {addr.address2 ? `, ${addr.address2}` : ""}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.4)",
+                      margin: "0 0 2px",
+                      letterSpacing: "0.03em",
+                    }}
+                  >
+                    {addr.city}, {addr.province} {addr.zip}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.3)",
+                      margin: 0,
+                      letterSpacing: "0.03em",
+                    }}
+                  >
+                    {addr.phone}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div>
             <p
               style={{
@@ -968,7 +1242,7 @@ function OrderDetail({ order }: { order: Order }) {
                 margin: "0 0 12px",
               }}
             >
-              Shipping Address
+              Summary
             </p>
             <div
               style={{
@@ -977,204 +1251,85 @@ function OrderDetail({ order }: { order: Order }) {
                 borderRadius: "14px",
                 padding: "18px 20px",
                 display: "flex",
+                flexDirection: "column",
                 gap: "12px",
               }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="rgba(232,168,48,0.6)"
-                strokeWidth="2"
-                style={{ marginTop: "2px", flexShrink: 0 }}
+              {[
+                { label: "Subtotal", value: order.subtotalPrice },
+                { label: "Shipping", value: order.totalShippingPrice },
+              ].map(({ label, value }) =>
+                value ? (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "10px",
+                        color: "rgba(245,247,249,0.35)",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {label}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: "11px",
+                        color: "rgba(245,247,249,0.6)",
+                      }}
+                    >
+                      {formatPrice(value.amount, value.currencyCode)}
+                    </span>
+                  </div>
+                ) : null,
+              )}
+              <div
+                style={{ height: "1px", background: "rgba(255,255,255,0.06)" }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
               >
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <div>
-                <p
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#f5f7f9",
-                    margin: "0 0 5px",
-                  }}
-                >
-                  {addr.firstName} {addr.lastName}
-                </p>
-                <p
+                <span
                   style={{
                     fontFamily: "monospace",
                     fontSize: "10px",
-                    color: "rgba(245,247,249,0.4)",
-                    margin: "0 0 2px",
-                    letterSpacing: "0.03em",
-                    lineHeight: 1.5,
+                    fontWeight: 800,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: "rgba(245,247,249,0.5)",
                   }}
                 >
-                  {addr.address1}
-                  {addr.address2 ? `, ${addr.address2}` : ""}
-                </p>
-                <p
+                  Total
+                </span>
+                <span
                   style={{
-                    fontFamily: "monospace",
-                    fontSize: "10px",
-                    color: "rgba(245,247,249,0.4)",
-                    margin: "0 0 2px",
-                    letterSpacing: "0.03em",
+                    fontFamily: "Bebas Neue, sans-serif",
+                    fontSize: "1.5rem",
+                    letterSpacing: "0.06em",
+                    color: "#e8a830",
                   }}
                 >
-                  {addr.city}, {addr.province} {addr.zip}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: "10px",
-                    color: "rgba(245,247,249,0.3)",
-                    margin: 0,
-                    letterSpacing: "0.03em",
-                  }}
-                >
-                  {addr.phone}
-                </p>
+                  {formatPrice(
+                    order.currentTotalPrice.amount,
+                    order.currentTotalPrice.currencyCode,
+                  )}
+                </span>
               </div>
-            </div>
-          </div>
-        )}
-        <div>
-          <p
-            style={{
-              fontFamily: "monospace",
-              fontSize: "9px",
-              fontWeight: 800,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              color: "rgba(245,247,249,0.3)",
-              margin: "0 0 12px",
-            }}
-          >
-            Summary
-          </p>
-          <div
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: "14px",
-              padding: "18px 20px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-            }}
-          >
-            {[
-              { label: "Subtotal", value: order.subtotalPrice },
-              { label: "Shipping", value: order.totalShippingPrice },
-            ].map(({ label, value }) =>
-              value ? (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: "10px",
-                      color: "rgba(245,247,249,0.35)",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    {label}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: "11px",
-                      color: "rgba(245,247,249,0.6)",
-                    }}
-                  >
-                    {formatPrice(value.amount, value.currencyCode)}
-                  </span>
-                </div>
-              ) : null,
-            )}
-            <div
-              style={{ height: "1px", background: "rgba(255,255,255,0.06)" }}
-            />
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "10px",
-                  fontWeight: 800,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "rgba(245,247,249,0.5)",
-                }}
-              >
-                Total
-              </span>
-              <span
-                style={{
-                  fontFamily: "Bebas Neue, sans-serif",
-                  fontSize: "1.5rem",
-                  letterSpacing: "0.06em",
-                  color: "#e8a830",
-                }}
-              >
-                {formatPrice(
-                  order.currentTotalPrice.amount,
-                  order.currentTotalPrice.currencyCode,
-                )}
-              </span>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Cancel Order — only shown when pending + unfulfilled */}
-      {order.financialStatus === "PENDING" &&
-        order.fulfillmentStatus === "UNFULFILLED" && (
-          <button
-            onClick={() => {
-              if (confirm("Are you sure you want to cancel this order?")) {
-                fetch(`/api/account-api/orders/${order.id}/cancel`, {
-                  method: "POST",
-                })
-                  .then(() => window.location.reload())
-                  .catch(() => alert("Failed to cancel. Please contact us."));
-              }
-            }}
-            style={{
-              width: "100%",
-              padding: "14px",
-              background: "rgba(248,113,113,0.06)",
-              border: "1px solid rgba(248,113,113,0.2)",
-              borderRadius: "12px",
-              color: "#f87171",
-              fontFamily: "monospace",
-              fontSize: "10px",
-              fontWeight: 700,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
-            Cancel Order
-          </button>
-        )}
-
       {/* Track CTA — only onClick added, everything else unchanged */}
       <button
         onClick={() => setTrackingOpen(true)} // ← ONLY CHANGE
@@ -1195,7 +1350,6 @@ function OrderDetail({ order }: { order: Order }) {
       >
         Track Order →
       </button>
-
       {/* Tracking modal — rendered via portal so it escapes any overflow:hidden */}
       {trackingOpen && (
         <TrackOrderModal order={order} onClose={() => setTrackingOpen(false)} />
