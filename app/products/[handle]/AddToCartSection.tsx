@@ -24,13 +24,14 @@ export default function AddToCartSection({
   variants: Variant[];
   options: Option[];
 }) {
-  const { addToCart, isLoading } = useCart();
+  const { addToCart, isLoading, checkout } = useCart();
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, string>
   >(Object.fromEntries(options.map((o) => [o.name, o.values[0]])));
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
 
   // Find matching variant for selected options
   const selectedVariant =
@@ -224,14 +225,46 @@ export default function AddToCartSection({
       {/* Add to cart */}
       <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
         <button
+          onClick={async () => {
+            if (!selectedVariant?.id || !isAvailable || buyingNow) return;
+            setBuyingNow(true);
+            try {
+              await addToCart(selectedVariant.id, quantity);
+              checkout();
+            } finally {
+              setBuyingNow(false);
+            }
+          }}
+          disabled={!isAvailable || buyingNow || isLoading}
+          style={{
+            flex: 1,
+            background: isAvailable ? "#e8a830" : "rgba(255,255,255,0.06)",
+            color: isAvailable ? "#06090e" : "rgba(245,247,249,0.25)",
+            border: "none",
+            padding: "17px 32px",
+            borderRadius: "10px",
+            fontSize: "11px",
+            fontWeight: 900,
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            cursor: isAvailable && !buyingNow && !isLoading ? "pointer" : "not-allowed",
+            fontFamily: "inherit",
+            transition: "all 0.2s ease",
+          }}
+        >
+          {!isAvailable ? "Sold Out" : buyingNow ? "Checking Out…" : "Buy Now"}
+        </button>
+
+        <button
           onClick={handleAddToCart}
           disabled={!isAvailable || adding || isLoading}
           style={{
             flex: 1,
+            minWidth: 0,
             background: added
               ? "rgba(34,197,94,0.15)"
               : isAvailable
-                ? "#e8a830"
+                ? "#f5f7f9"
                 : "rgba(255,255,255,0.06)",
             color: added
               ? "#22c55e"
