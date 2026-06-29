@@ -128,6 +128,7 @@ function ProductModal({
   const isEdit = modal.mode === "edit";
   const product = isEdit ? (modal as any).product : null;
   const oos = product ? product.totalInventory === 0 : false;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   function upd(key: keyof DraftProduct, value: any) {
     setDraft((p) => ({ ...p, [key]: value }));
@@ -167,6 +168,8 @@ function ProductModal({
       setUploading(false);
     }
   }
+  
+  
 
   async function handleSave() {
     if (!draft.title.trim()) {
@@ -214,14 +217,16 @@ function ProductModal({
             return;
           }
         }
-        // Save stock edits
+        
+     // Save stock edits
         const stockEntries = Object.entries(draft.stockEdits ?? {});
-        for (const [, entry] of stockEntries) {
+        const updatedStockEdits = { ...draft.stockEdits };
+        for (const [size, entry] of stockEntries) {
           const newQty = parseInt(entry.newQty);
           if (!isNaN(newQty) && entry.inventoryItemId) {
             const delta = newQty - entry.current;
             if (delta !== 0) {
-              await fetch("/api/admin/update-inventory", {
+              const invRes = await fetch("/api/admin/update-inventory", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -229,6 +234,14 @@ function ProductModal({
                   quantity: delta,
                 }),
               });
+              const invData = await invRes.json();
+              if (invData.success) {
+                // Sync current so next save computes correct delta
+                updatedStockEdits[size] = { ...entry, current: newQty };
+              } else {
+                setDraft((p) => ({ ...p, stockEdits: updatedStockEdits }));
+                showToast(`Stock update failed for ${size}: ${invData.error}`, false);
+              }
             }
           }
           if (entry.variantId && entry.price) {
@@ -271,7 +284,8 @@ function ProductModal({
       setSaving(false);
     }
   }
-
+  
+  
   return (
     <div
       onClick={(e) => {
@@ -1165,6 +1179,7 @@ function ProductModal({
   );
 }
 
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function AdminProductsPage() {
@@ -1174,14 +1189,34 @@ export default function AdminProductsPage() {
   const [filter, setFilter] = useState<FilterVal>("ALL");
   const [search, setSearch] = useState("");
   const { toast, showToast } = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchProducts = useCallback(async () => {
+   const fetchProducts = useCallback(async (delay?: number) => {
+  if (delay) await new Promise((r) => setTimeout(r, delay));
     setLoading(true);
     const res = await fetch("/api/admin/products", { cache: "no-store" });
     const data = await res.json();
     setProducts(data);
     setLoading(false);
   }, []);
+ 
+  async function handleDelete(productId: string) {
+    if (!window.confirm("Delete this product? This cannot be undone.")) return;
+    setDeletingId(productId);
+    const res = await fetch("/api/admin/delete-product", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId }),
+    });
+    const data = await res.json();
+    setDeletingId(null);
+    if (data.success) {
+      showToast("Product deleted");
+      fetchProducts();
+    } else {
+      showToast("Delete failed: " + data.error, false);
+    }
+  }
 
   useEffect(() => {
     fetchProducts();
@@ -1245,9 +1280,9 @@ export default function AdminProductsPage() {
             </h1>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <ActionButton onClick={fetchProducts} variant="ghost">
-              ↻ Refresh
-            </ActionButton>
+           <ActionButton onClick={() => fetchProducts()} variant="ghost">
+            ↻ Refresh
+          </ActionButton>
             <ActionButton
               onClick={() => setModal({ mode: "new", draft: emptyDraft() })}
               variant="gold"
@@ -1342,7 +1377,7 @@ export default function AdminProductsPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "60px 1fr 140px 130px 130px 80px",
+              gridTemplateColumns: "60px 1fr 140px 130px 140px 125px",
               padding: "12px 22px",
               borderBottom: "1px solid rgba(255,255,255,0.06)",
               fontFamily: "monospace",
@@ -1389,7 +1424,7 @@ export default function AdminProductsPage() {
                   }
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "60px 1fr 140px 130px 130px 80px",
+                    gridTemplateColumns: "60px 1fr 140px 130px 130px 120px",
                     padding: "13px 22px",
                     borderBottom: "1px solid rgba(255,255,255,0.04)",
                     alignItems: "center",
@@ -1473,7 +1508,7 @@ export default function AdminProductsPage() {
                     <StatusPill label={product.status} />
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                     <ActionButton
                       onClick={() =>
                         setModal({
@@ -1487,6 +1522,27 @@ export default function AdminProductsPage() {
                     >
                       Edit
                     </ActionButton>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      disabled={deletingId === product.id}
+                      title="Delete product"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 6,
+                        background: "rgba(248,113,113,0.08)",
+                        border: "1px solid rgba(248,113,113,0.18)",
+                        color: deletingId === product.id ? "rgba(248,113,113,0.3)" : "#f87171",
+                        fontSize: 13,
+                        cursor: deletingId === product.id ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      🗑
+                    </button>
                   </div>
                 </div>
               );
@@ -1494,14 +1550,14 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {modal && (
-        <ProductModal
-          modal={modal}
-          onClose={() => setModal(null)}
-          onSaved={fetchProducts}
-          showToast={showToast}
-        />
-      )}
+        {modal && (
+      <ProductModal
+        modal={modal}
+        onClose={() => setModal(null)}
+        onSaved={() => fetchProducts(2000)}
+        showToast={showToast}
+      />
+    )}
 
       <Toast toast={toast} />
     </div>

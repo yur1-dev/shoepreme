@@ -3,7 +3,8 @@ import { adjustInventoryDelta } from "@/lib/shopify-admin";
 
 export async function POST(req: NextRequest) {
   const { inventoryItemId, quantity } = await req.json();
-  // `quantity` here is the delta (positive or negative difference)
+  console.log("update-inventory called:", { inventoryItemId, quantity });
   const result = await adjustInventoryDelta(inventoryItemId, quantity);
+  console.log("update-inventory result:", result);
   return NextResponse.json(result);
 }
