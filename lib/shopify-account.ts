@@ -25,44 +25,6 @@ export async function getDiscovery() {
   return discoveryCache!;
 }
 
-let apiDiscoveryCache: { graphql_api: string; mcp_api: string } | null = null;
-
-export async function getApiDiscovery() {
-  if (apiDiscoveryCache) return apiDiscoveryCache;
-  const res = await fetch(
-    `https://${SHOP_DOMAIN}/.well-known/customer-account-api`,
-  );
-  if (!res.ok) {
-    throw new Error(`🔍 Customer Account API discovery failed: ${res.status}`);
-  }
-  apiDiscoveryCache = await res.json();
-  return apiDiscoveryCache!;
-}
-
-export async function customerAccountQuery(
-  accessToken: string,
-  query: string,
-  variables: Record<string, unknown> = {},
-) {
-  const { graphql_api } = await getApiDiscovery();
-  const res = await fetch(graphql_api, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: accessToken, // raw token — no "Bearer " prefix, that's correct here
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const data = await res.json();
-  if (data.errors) {
-    console.error(
-      "🔍 Customer Account API error:",
-      JSON.stringify(data.errors),
-    );
-  }
-  return data;
-}
-
 export async function refreshShopifyAccessToken(refreshToken: string) {
   const { token_endpoint } = await getDiscovery();
   const clientId = process.env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID!;
@@ -97,4 +59,41 @@ export async function refreshShopifyAccessToken(refreshToken: string) {
     refresh_token: string;
     expires_in: number;
   }>;
+}
+export async function customerAccountQuery(
+  accessToken: string,
+  query: string,
+  variables: Record<string, unknown> = {},
+) {
+  const shopId = SHOP_DOMAIN.split("/").pop();
+  const endpoint = `https://shopify.com/${shopId}/account/customer/api/2024-07/graphql`;
+
+  // console.log("🔍 SHOP_DOMAIN value:", SHOP_DOMAIN);
+  // console.log("🔍 Full endpoint:", endpoint);
+  // console.log("🔍 customerAccountQuery endpoint:", endpoint);
+  // console.log("🔍 accessToken preview:", accessToken?.slice(0, 20));
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: accessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+    cache: "no-store",
+  });
+
+  console.log("🔍 Customer API response status:", res.status);
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("🔍 Customer API raw response:", text.slice(0, 500));
+    throw new Error(`Customer Account API failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  if (data.errors) {
+    console.error("🔍 Customer Account API error:", JSON.stringify(data.errors));
+  }
+  return data;
 }

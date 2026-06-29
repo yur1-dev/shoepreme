@@ -61,7 +61,8 @@ export default function AdminOrdersPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     "Pay In-Store (Cash)",
   );
-  const { toast, showToast } = useToast();
+ const { toast, showToast } = useToast();
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -124,9 +125,32 @@ export default function AdminOrdersPage() {
         body: JSON.stringify({ orderId }),
       });
       const data = await res.json();
+      if (data.success) {
+        showToast("Order cancelled");
+        await fetchOrders();
+      } else if (data.error?.toLowerCase().includes("already been canceled")) {
+        showToast("Already cancelled — refreshing");
+        await fetchOrders();
+      } else {
+        showToast("Cancel failed: " + data.error, false);
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  }
+  async function handleSetStatus(e: React.MouseEvent, orderId: string, status: "IN_PROGRESS" | "ON_HOLD") {
+    e.stopPropagation();
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/set-order-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status }),
+      });
+      const data = await res.json();
       data.success
-        ? showToast("Order cancelled")
-        : showToast("Cancel failed: " + data.error, false);
+        ? showToast(`Order marked as ${status.replace("_", " ").toLowerCase()} ✓`)
+        : showToast("Failed: " + data.error, false);
       if (data.success) await fetchOrders();
     } finally {
       setActionLoading(null);
@@ -334,14 +358,25 @@ export default function AdminOrdersPage() {
             filtered.map((order) => {
               const isBusy = actionLoading === order.id;
               const isExpanded = expandedId === order.id;
+              const isVoided = 
+                !!order.cancelledAt ||
+                order.displayFinancialStatus === "VOIDED" || 
+                order.displayFinancialStatus === "REFUNDED" ||
+                order.displayFinancialStatus === "CANCELLED" ||
+                order.displayFulfillmentStatus === "CANCELLED" ||
+                order.displayFulfillmentStatus === "RESTOCKED";
               const canMarkPaid = order.displayFinancialStatus === "PENDING";
+              const isFulfilled = order.displayFulfillmentStatus === "FULFILLED";
               const canFulfill =
+                !isVoided &&
                 order.displayFinancialStatus === "PAID" &&
                 (order.displayFulfillmentStatus === "UNFULFILLED" ||
-                  order.displayFulfillmentStatus === "PARTIALLY_FULFILLED");
+                  order.displayFulfillmentStatus === "PARTIALLY_FULFILLED" ||
+                  order.displayFulfillmentStatus === "ON_HOLD");
+              const canChangeStatus =
+                !isVoided && order.displayFinancialStatus === "PAID";
               const canCancel =
-                order.displayFinancialStatus !== "VOIDED" &&
-                order.displayFinancialStatus !== "REFUNDED";
+                !isVoided && !isFulfilled;
               const addressLines = formatAddress(order.shippingAddress);
               const items =
                 order.lineItems?.edges?.map((e: any) => e.node) ?? [];
@@ -454,11 +489,7 @@ export default function AdminOrdersPage() {
                     </span>
 
                     <div
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        justifyContent: "flex-end",
-                      }}
+                      style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {canMarkPaid && (
@@ -476,15 +507,96 @@ export default function AdminOrdersPage() {
                         </ActionButton>
                       )}
                       {canFulfill && (
-                        <ActionButton
-                          onClick={(e: any) => handleFulfill(e, order.id)}
-                          disabled={isBusy}
-                          variant="green"
-                          small
-                        >
-                          {isBusy ? "…" : "Fulfill"}
-                        </ActionButton>
+                        <div style={{ position: "relative", display: "flex" }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleFulfill(e, order.id); }}
+                            disabled={isBusy}
+                            style={{
+                              padding: "5px 10px",
+                              borderRadius: "7px 0 0 7px",
+                              background: "rgba(74,222,128,0.1)",
+                              border: "1px solid rgba(74,222,128,0.25)",
+                              borderRight: "none",
+                              color: "#4ade80",
+                              fontFamily: "monospace",
+                              fontSize: 9,
+                              fontWeight: 700,
+                              letterSpacing: "0.08em",
+                              cursor: isBusy ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {isBusy ? "…" : "Fulfill"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdown(openDropdown === order.id ? null : order.id);
+                            }}
+                            disabled={isBusy}
+                            style={{
+                              padding: "5px 7px",
+                              borderRadius: "0 7px 7px 0",
+                              background: "rgba(74,222,128,0.1)",
+                              border: "1px solid rgba(74,222,128,0.25)",
+                              color: "#4ade80",
+                              fontSize: 9,
+                              cursor: isBusy ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            ▾
+                          </button>
+                          {openDropdown === order.id && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "calc(100% + 6px)",
+                                right: 0,
+                                background: "#0f131c",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: 10,
+                                overflow: "hidden",
+                                zIndex: 100,
+                                minWidth: 150,
+                                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                              }}
+                            >
+                              {[
+                                { label: "In Progress", value: "IN_PROGRESS", color: "#e8a830" },
+                                { label: "On Hold", value: "ON_HOLD", color: "#f87171" },
+                              ].map((opt, i, arr) => (
+                                <button
+                                  key={opt.value}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdown(null);
+                                    handleSetStatus(e, order.id, opt.value as any);
+                                  }}
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    padding: "10px 14px",
+                                    background: "transparent",
+                                    border: "none",
+                                    borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                                    color: opt.color,
+                                    fontFamily: "monospace",
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    letterSpacing: "0.08em",
+                                    cursor: "pointer",
+                                    textAlign: "left",
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       )}
+                      
                       {canCancel && (
                         <ActionButton
                           onClick={(e: any) => handleCancel(e, order.id)}

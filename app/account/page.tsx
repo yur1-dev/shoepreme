@@ -49,11 +49,94 @@ export default async function AccountPage() {
   const customerData = {
     displayName,
     email: customer?.email ?? session.user.email ?? undefined,
-    // MongoDB phone wins over Shopify phone
     phone: (dbCustomer as any)?.phone ?? customer?.phone ?? undefined,
     numberOfOrders: customer?.numberOfOrders ?? 0,
   };
 
+  // Fetch orders server-side using the OAuth token
+  let initialOrders: any[] = [];
+  if (token) {
+    try {
+      const { customerAccountQuery } = await import("@/lib/shopify-account");
+      const ORDER_QUERY = `
+        query {
+          customer {
+            orders(first: 50, sortKey: PROCESSED_AT, reverse: true) {
+              edges {
+                node {
+                  id
+                  number
+                  processedAt
+                  financialStatus
+                  fulfillmentStatus
+                  totalPrice { amount currencyCode }
+                  subtotal { amount currencyCode }
+                  totalShipping { amount currencyCode }
+                  shippingAddress {
+                    firstName lastName address1 address2
+                    city zoneCode zip country
+                  }
+                  lineItems(first: 50) {
+                    edges {
+                      node {
+                        title
+                        quantity
+                        image { url }
+                        price { amount currencyCode }
+                        variantTitle
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+      const result = await customerAccountQuery(token, ORDER_QUERY);
+      const edges = result?.data?.customer?.orders?.edges ?? [];
+      initialOrders = edges.map(({ node }: any) => ({
+        id: node.id,
+        orderNumber: node.number,
+        processedAt: node.processedAt,
+        financialStatus: node.financialStatus ?? "PENDING",
+        fulfillmentStatus: node.fulfillmentStatus ?? "UNFULFILLED",
+        currentTotalPrice: node.totalPrice ?? { amount: "0.00", currencyCode: "PHP" },
+        subtotalPrice: node.subtotal ?? { amount: "0.00", currencyCode: "PHP" },
+        totalShippingPrice: node.totalShipping ?? { amount: "0.00", currencyCode: "PHP" },
+        shippingAddress: node.shippingAddress ? {
+          id: `addr-${node.id}`,
+          firstName: node.shippingAddress.firstName ?? "",
+          lastName: node.shippingAddress.lastName ?? "",
+          address1: node.shippingAddress.address1 ?? "",
+          address2: node.shippingAddress.address2 ?? null,
+          city: node.shippingAddress.city ?? "",
+          province: node.shippingAddress.zoneCode ?? "",
+          zip: node.shippingAddress.zip ?? "",
+          country: node.shippingAddress.country ?? "",
+          phone: "",
+          isDefault: false,
+        } : null,
+        lineItems: {
+          edges: (node.lineItems?.edges ?? []).map(({ node: item }: any) => ({
+            node: {
+              title: item.title,
+              quantity: item.quantity,
+              variant: {
+                image: item.image ? { url: item.image.url } : undefined,
+                selectedOptions: item.variantTitle
+                  ? [{ name: "Size", value: item.variantTitle }]
+                  : [],
+                price: item.price,
+              },
+            },
+          })),
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to fetch orders server-side", err);
+    }
+  }
   return (
     <div style={{ minHeight: "100vh", background: "#0d1117", position: "relative" }}>
       <div
@@ -68,10 +151,11 @@ export default async function AccountPage() {
       />
       <Navbar />
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
-        <AccountClient
+       <AccountClient
           customerId={customer?.id ?? ""}
           shopifyToken={token ?? ""}
           customer={customerData}
+          initialOrders={initialOrders}
           SignOutButton={<SignOutButton />}
         />
       </div>

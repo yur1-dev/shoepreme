@@ -3667,18 +3667,20 @@ function ProfileSection({
 interface AccountClientPropsExtended extends AccountClientProps {
   customerId: string;
   shopifyToken?: string;
+  initialOrders?: any[];
 }
 
 export default function AccountClient({
   customer,
   customerId,
   shopifyToken,
+  initialOrders = [],
   SignOutButton,
 }: AccountClientPropsExtended) {
   const [activeSection, setActiveSection] = useState<Section>("orders");
   const [liveCustomer, setLiveCustomer] = useState<CustomerData>(customer);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [ordersLoading, setOrdersLoading] = useState(initialOrders.length === 0);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState("all");
   const [mobileOrdersView, setMobileOrdersView] = useState(false);
@@ -3714,7 +3716,7 @@ export default function AccountClient({
     return () => {
       cancelled = true;
     };
-  }, [customerId]);
+  }, [customerId, shopifyToken]);
 
   const sectionTitles: Record<Section, string> = {
     orders: selectedOrder

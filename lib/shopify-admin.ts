@@ -51,11 +51,16 @@ export async function fulfillOrder(orderId: string) {
     `
     query getFulfillmentOrders($orderId: ID!) {
       order(id: $orderId) {
-        fulfillmentOrders(first: 5) {
+        id
+        fulfillmentOrders(first: 10) {
           edges {
             node {
               id
               status
+              requestStatus
+              supportedActions {
+                action
+              }
             }
           }
         }
@@ -65,11 +70,21 @@ export async function fulfillOrder(orderId: string) {
     { orderId },
   );
 
+  console.log("foData raw:", JSON.stringify(foData, null, 2));
+
   const fulfillmentOrders = foData?.data?.order?.fulfillmentOrders?.edges ?? [];
-  const openFO = fulfillmentOrders.find((e: any) => e.node.status === "OPEN");
+  
+  console.log("Fulfillment orders:", JSON.stringify(fulfillmentOrders, null, 2));
+
+  // Take the first fulfillment order that supports createFulfillment, or just the first one
+  const openFO =
+    fulfillmentOrders.find((e: any) =>
+      e.node.supportedActions?.some((a: any) => a.action === "CREATE_FULFILLMENT")
+    ) ?? fulfillmentOrders[0];
 
   if (!openFO) {
-    return { success: false, error: "No open fulfillment order found" };
+    const statuses = fulfillmentOrders.map((e: any) => e.node.status).join(", ");
+    return { success: false, error: `No open fulfillment order found. Statuses: ${statuses}` };
   }
 
   const data = await adminFetch(
@@ -178,6 +193,7 @@ export async function cancelOrder(orderId: string) {
       restock: true,
     },
   );
+ console.log("cancelOrder response:", JSON.stringify(data, null, 2));
 
   const errors = data?.data?.orderCancel?.orderCancelUserErrors;
   if (errors?.length) {
@@ -199,6 +215,8 @@ export async function getOrders(first = 20) {
             createdAt
             displayFinancialStatus
             displayFulfillmentStatus
+            cancelledAt
+            cancelReason
             paymentGatewayNames
             customer {
               displayName
@@ -968,4 +986,63 @@ if (data?.errors?.length) return { success: false, error: data.errors[0].message
 const errors = data?.data?.inventoryAdjustQuantities?.userErrors;
 if (errors?.length) return { success: false, error: errors[0].message };
 return { success: true };
+}
+export async function setFulfillmentOrderStatus(
+  orderId: string,
+  status: "IN_PROGRESS" | "ON_HOLD",
+) {
+  // First get the fulfillment order ID
+  const foData = await adminFetch(
+    `
+    query getFulfillmentOrders($orderId: ID!) {
+      order(id: $orderId) {
+        fulfillmentOrders(first: 5) {
+          edges { node { id status } }
+        }
+      }
+    }
+  `,
+    { orderId },
+  );
+
+  const edges = foData?.data?.order?.fulfillmentOrders?.edges ?? [];
+  const fo = edges.find(
+    (e: any) =>
+      e.node.status === "OPEN" ||
+      e.node.status === "IN_PROGRESS" ||
+      e.node.status === "ON_HOLD" ||
+      e.node.status === "CLOSED",
+  );
+
+  if (!fo) return { success: false, error: "No fulfillment order found" };
+
+  const mutation =
+    status === "ON_HOLD"
+      ? `mutation holdFulfillmentOrder($id: ID!, $reason: FulfillmentHoldReason!, $notifyMerchant: Boolean) {
+          fulfillmentOrderHold(id: $id, fulfillmentHold: { reason: $reason, notifyMerchant: $notifyMerchant }) {
+            fulfillmentOrder { id status }
+            userErrors { field message }
+          }
+        }`
+      : `mutation openFulfillmentOrder($id: ID!) {
+          fulfillmentOrderOpen(id: $id) {
+            fulfillmentOrder { id status }
+            userErrors { field message }
+          }
+        }`;
+
+  const variables =
+    status === "ON_HOLD"
+      ? { id: fo.node.id, reason: "OTHER", notifyMerchant: false }
+      : { id: fo.node.id };
+
+  const data = await adminFetch(mutation, variables);
+
+  const errors =
+    data?.data?.fulfillmentOrderHold?.userErrors ??
+    data?.data?.fulfillmentOrderOpen?.userErrors ??
+    [];
+
+  if (errors.length) return { success: false, error: errors[0].message };
+  return { success: true };
 }
