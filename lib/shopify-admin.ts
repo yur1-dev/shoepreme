@@ -47,7 +47,6 @@ export async function updateCustomerPassword(
 }
 
 export async function fulfillOrder(orderId: string) {
-  // First get the fulfillment order ID (required by the new Fulfillment API)
   const foData = await adminFetch(
     `
     query getFulfillmentOrders($orderId: ID!) {
@@ -105,11 +104,8 @@ export async function fulfillOrder(orderId: string) {
     fulfillment: data?.data?.fulfillmentCreate?.fulfillment,
   };
 }
-// ─── 1. Add this function to lib/shopify-admin.ts ────────────────────────────
-// Paste it anywhere in the file alongside your other exported functions.
 
 export async function markOrderAsPaid(orderId: string, paymentMethod: string) {
-  // Shopify uses transactions to mark an order as paid
   const data = await adminFetch(
     `
     mutation orderMarkAsPaid($input: OrderMarkAsPaidInput!) {
@@ -266,12 +262,12 @@ export async function getProducts(first = 50) {
             productType
             descriptionHtml
             totalInventory
-          featuredImage {
+            featuredImage {
               id
               url
               altText
             }
-          vendor
+            vendor
             collections(first: 5) {
               edges {
                 node {
@@ -478,49 +474,6 @@ export async function deleteProductMedia(
   return { success: true };
 }
 
-export async function createProduct(input: {
-  title: string;
-  productType: string;
-  descriptionHtml: string;
-  status: string;
-  price: string;
-  sizes: string[];
-}) {
-  const hasVariants = input.sizes.length > 0;
-  const productInput: any = {
-    title: input.title,
-    productType: input.productType,
-    descriptionHtml: input.descriptionHtml,
-    status: input.status,
-  };
-
-  if (hasVariants) {
-    productInput.options = ["Size"];
-    productInput.variants = input.sizes.map((size) => ({
-      options: [size],
-      price: input.price,
-    }));
-  } else {
-    productInput.variants = [{ price: input.price }];
-  }
-
-  const data = await adminFetch(
-    `
-    mutation productCreate($input: ProductInput!) {
-      productCreate(input: $input) {
-        product { id title }
-        userErrors { field message }
-      }
-    }
-  `,
-    { input: productInput },
-  );
-
-  const errors = data?.data?.productCreate?.userErrors;
-  if (errors?.length) return { success: false, error: errors[0].message };
-  return { success: true, product: data?.data?.productCreate?.product };
-}
-
 export async function getPrimaryLocationId(): Promise<string | null> {
   const data = await adminFetch(`
     query {
@@ -536,36 +489,84 @@ export async function getPrimaryLocationId(): Promise<string | null> {
   return data?.data?.locations?.edges?.[0]?.node?.id ?? null;
 }
 
-export async function addVariantToProduct(
-  productId: string,
-  size: string,
-  price: string,
-  quantity: number,
-) {
-  // First get the option ID for "Size"
-  const productData = await adminFetch(
+// FIXED: createProduct — 2024-01 API removed variants from ProductInput.
+// Now creates product shell first, then uses productVariantsBulkCreate.
+export async function createProduct(input: {
+  title: string;
+  productType: string;
+  descriptionHtml: string;
+  status: string;
+  price: string;
+  sizes: string[];
+}) {
+  const hasVariants = input.sizes.length > 0;
+
+  const productInput: any = {
+    title: input.title,
+    productType: input.productType,
+    descriptionHtml: input.descriptionHtml,
+    status: input.status,
+    ...(hasVariants && { options: ["Size"] }),
+  };
+
+  const createData = await adminFetch(
     `
-    query getProductOptions($id: ID!) {
-      product(id: $id) {
-        options { id name }
+    mutation productCreate($input: ProductInput!) {
+      productCreate(input: $input) {
+        product {
+          id
+          title
+          variants(first: 1) {
+            edges {
+              node {
+                id
+                inventoryItem { id }
+              }
+            }
+          }
+        }
+        userErrors { field message }
       }
     }
   `,
-    { id: productId },
+    { input: productInput },
   );
 
-  const options = productData?.data?.product?.options ?? [];
-  const sizeOption = options.find((o: any) => o.name === "Size");
-
-  if (!sizeOption) {
-    return { success: false, error: "No Size option found on this product" };
+  const createErrors = createData?.data?.productCreate?.userErrors;
+  if (createErrors?.length) {
+    return { success: false, error: createErrors[0].message };
   }
 
-  const data = await adminFetch(
+  const product = createData?.data?.productCreate?.product;
+  if (!product) return { success: false, error: "Product creation failed" };
+
+  const locationId = await getPrimaryLocationId();
+
+  // No sizes — just update the default variant price
+  if (!hasVariants) {
+    const defaultVariantId = product.variants?.edges?.[0]?.node?.id;
+    if (defaultVariantId) {
+      await adminFetch(
+        `
+        mutation productVariantUpdate($input: ProductVariantInput!) {
+          productVariantUpdate(input: $input) {
+            productVariant { id }
+            userErrors { field message }
+          }
+        }
+      `,
+        { input: { id: defaultVariantId, price: input.price } },
+      );
+    }
+    return { success: true, product };
+  }
+
+  // Has sizes — bulk create variants
+  const variantData = await adminFetch(
     `
-    mutation productVariantCreate($input: ProductVariantInput!) {
-      productVariantCreate(input: $input) {
-        productVariant {
+    mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkCreate(productId: $productId, variants: $variants) {
+        productVariants {
           id
           title
           inventoryItem { id }
@@ -575,33 +576,98 @@ export async function addVariantToProduct(
     }
   `,
     {
-      input: {
-        productId,
-        price,
-        options: [size],
-        inventoryQuantities: [{ availableQuantity: quantity, locationId: "" }],
-      },
+      productId: product.id,
+      variants: input.sizes.map((size) => ({
+        optionValues: [{ optionName: "Size", name: size }],
+        price: input.price,
+        ...(locationId && {
+          inventoryQuantities: [{ availableQuantity: 0, locationId }],
+        }),
+      })),
     },
   );
 
-  const errors = data?.data?.productVariantCreate?.userErrors;
-  if (errors?.length) return { success: false, error: errors[0].message };
+  const variantErrors = variantData?.data?.productVariantsBulkCreate?.userErrors;
+  if (variantErrors?.length) {
+    console.error("Variant creation errors:", variantErrors);
+    return {
+      success: true,
+      product,
+      warning: `Product created but some sizes failed: ${variantErrors[0].message}`,
+    };
+  }
 
-  const variant = data?.data?.productVariantCreate?.productVariant;
-
-  // Set inventory separately using location
-  const locationId = await getPrimaryLocationId();
-  if (locationId && variant?.inventoryItem?.id && quantity > 0) {
-    await updateVariantInventory(
-      variant.inventoryItem.id,
-      locationId,
-      quantity,
+  // Delete the auto-created "Default Title" variant
+  const allVariants = variantData?.data?.productVariantsBulkCreate?.productVariants ?? [];
+  const defaultVariant = product.variants?.edges?.[0]?.node;
+  if (defaultVariant && allVariants.length > 0) {
+    await adminFetch(
+      `
+      mutation productVariantsBulkDelete($productId: ID!, $variantsIds: [ID!]!) {
+        productVariantsBulkDelete(productId: $productId, variantsIds: $variantsIds) {
+          userErrors { field message }
+        }
+      }
+    `,
+      {
+        productId: product.id,
+        variantsIds: [defaultVariant.id],
+      },
     );
   }
 
+  return { success: true, product };
+}
+
+// FIXED: addVariantToProduct — was passing empty locationId: "" which silently fails.
+// Now uses productVariantsBulkCreate (correct 2024-01 API).
+export async function addVariantToProduct(
+  productId: string,
+  size: string,
+  price: string,
+  quantity: number,
+) {
+  const locationId = await getPrimaryLocationId();
+  if (!locationId) {
+    return { success: false, error: "Could not determine store location" };
+  }
+
+  const data = await adminFetch(
+    `
+    mutation productVariantsBulkCreate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+      productVariantsBulkCreate(productId: $productId, variants: $variants) {
+        productVariants {
+          id
+          title
+          inventoryItem { id }
+        }
+        userErrors { field message }
+      }
+    }
+  `,
+    {
+      productId,
+      variants: [
+        {
+          optionValues: [{ optionName: "Size", name: size }],
+          price,
+          ...(quantity > 0 && {
+            inventoryQuantities: [{ availableQuantity: quantity, locationId }],
+          }),
+        },
+      ],
+    },
+  );
+
+  const errors = data?.data?.productVariantsBulkCreate?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+
+  const variant = data?.data?.productVariantsBulkCreate?.productVariants?.[0];
   return { success: true, variant };
 }
 
+// FIXED: updateVariantInventory — inventoryAdjustQuantity is deprecated in 2024-01.
+// Now uses inventorySetQuantities.
 export async function updateVariantInventory(
   inventoryItemId: string,
   locationId: string,
@@ -609,19 +675,67 @@ export async function updateVariantInventory(
 ) {
   const data = await adminFetch(
     `
-    mutation inventoryAdjustQuantity($input: InventoryAdjustQuantityInput!) {
-      inventoryAdjustQuantity(input: $input) {
-        inventoryLevel {
-          available
-        }
+    mutation inventorySetQuantities($input: InventorySetQuantitiesInput!) {
+      inventorySetQuantities(input: $input) {
+        inventoryAdjustmentGroup { id }
         userErrors { field message }
       }
     }
   `,
-    { input: { inventoryItemId, locationId, availableDelta: available } },
+    {
+      input: {
+        name: "available",
+        reason: "correction",
+        quantities: [
+          {
+            inventoryItemId,
+            locationId,
+            quantity: available,
+          },
+        ],
+      },
+    },
   );
 
-  const errors = data?.data?.inventoryAdjustQuantity?.userErrors;
+  const errors = data?.data?.inventorySetQuantities?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
+
+// NEW: adjustInventoryDelta — used by the update-inventory route.
+// Applies a delta (±) change instead of setting an absolute quantity.
+export async function adjustInventoryDelta(
+  inventoryItemId: string,
+  delta: number,
+) {
+  const locationId = await getPrimaryLocationId();
+  if (!locationId) return { success: false, error: "No location found" };
+
+  const data = await adminFetch(
+    `
+    mutation inventoryAdjustQuantities($input: InventoryAdjustQuantitiesInput!) {
+      inventoryAdjustQuantities(input: $input) {
+        inventoryAdjustmentGroup { id }
+        userErrors { field message }
+      }
+    }
+  `,
+    {
+      input: {
+        name: "available",
+        reason: "correction",
+        changes: [
+          {
+            inventoryItemId,
+            locationId,
+            delta,
+          },
+        ],
+      },
+    },
+  );
+
+  const errors = data?.data?.inventoryAdjustQuantities?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
   return { success: true };
 }

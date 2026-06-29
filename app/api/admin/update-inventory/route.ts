@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  updateVariantInventory,
-  getPrimaryLocationId,
-} from "@/lib/shopify-admin";
+import { adjustInventoryDelta } from "@/lib/shopify-admin";
 
 export async function POST(req: NextRequest) {
   const { inventoryItemId, quantity } = await req.json();
-  const locationId = await getPrimaryLocationId();
-  if (!locationId)
-    return NextResponse.json({ success: false, error: "No location found" });
-  const result = await updateVariantInventory(
-    inventoryItemId,
-    locationId,
-    quantity,
-  );
+  // `quantity` here is the delta (positive or negative difference)
+  const result = await adjustInventoryDelta(inventoryItemId, quantity);
   return NextResponse.json(result);
 }
