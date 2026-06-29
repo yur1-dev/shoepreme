@@ -1177,7 +1177,7 @@ export default function AdminProductsPage() {
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/products");
+    const res = await fetch("/api/admin/products", { cache: "no-store" });
     const data = await res.json();
     setProducts(data);
     setLoading(false);
