@@ -178,6 +178,7 @@ export async function cancelOrder(orderId: string) {
       orderCancel(orderId: $orderId, reason: $reason, refund: $refund, restock: $restock) {
         job {
           id
+          done
         }
         orderCancelUserErrors {
           field
@@ -193,7 +194,8 @@ export async function cancelOrder(orderId: string) {
       restock: true,
     },
   );
- console.log("cancelOrder response:", JSON.stringify(data, null, 2));
+
+  console.log("cancelOrder response:", JSON.stringify(data, null, 2));
 
   const errors = data?.data?.orderCancel?.orderCancelUserErrors;
   if (errors?.length) {
