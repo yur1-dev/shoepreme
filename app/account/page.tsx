@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getCustomer } from "@/lib/shopify-customer";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Customer } from "@/models/customer";
 import Navbar from "@/components/layout/Navbar";
@@ -19,7 +18,41 @@ export default async function AccountPage() {
   if (!session?.user) redirect("/account/login");
 
   const token = session.shopifyAccessToken;
-  const customer = token ? await getCustomer(token) : null;
+  let customer: {
+    id?: string;
+    firstName?: string;
+    email?: string;
+    phone?: string;
+    numberOfOrders?: number;
+  } | null = null;
+  if (token) {
+    try {
+      const { customerAccountQuery } = await import("@/lib/shopify-account");
+      const CUSTOMER_QUERY = `
+        query {
+          customer {
+            id
+            firstName
+            lastName
+            emailAddress { emailAddress }
+            phoneNumber { phoneNumber }
+          }
+        }
+      `;
+      const result = await customerAccountQuery(token, CUSTOMER_QUERY);
+      const c = result?.data?.customer;
+      if (c) {
+        customer = {
+          id: c.id,
+          firstName: c.firstName,
+          email: c.emailAddress?.emailAddress,
+          phone: c.phoneNumber?.phoneNumber,
+        };
+      }
+    } catch (err) {
+      console.error("Failed to fetch customer from Customer Account API", err);
+    }
+  }
 
   // Load saved profile from MongoDB
   let dbCustomer: { displayName?: string; phone?: string } | null = null;
@@ -101,22 +134,30 @@ export default async function AccountPage() {
         processedAt: node.processedAt,
         financialStatus: node.financialStatus ?? "PENDING",
         fulfillmentStatus: node.fulfillmentStatus ?? "UNFULFILLED",
-        currentTotalPrice: node.totalPrice ?? { amount: "0.00", currencyCode: "PHP" },
+        currentTotalPrice: node.totalPrice ?? {
+          amount: "0.00",
+          currencyCode: "PHP",
+        },
         subtotalPrice: node.subtotal ?? { amount: "0.00", currencyCode: "PHP" },
-        totalShippingPrice: node.totalShipping ?? { amount: "0.00", currencyCode: "PHP" },
-        shippingAddress: node.shippingAddress ? {
-          id: `addr-${node.id}`,
-          firstName: node.shippingAddress.firstName ?? "",
-          lastName: node.shippingAddress.lastName ?? "",
-          address1: node.shippingAddress.address1 ?? "",
-          address2: node.shippingAddress.address2 ?? null,
-          city: node.shippingAddress.city ?? "",
-          province: node.shippingAddress.zoneCode ?? "",
-          zip: node.shippingAddress.zip ?? "",
-          country: node.shippingAddress.country ?? "",
-          phone: "",
-          isDefault: false,
-        } : null,
+        totalShippingPrice: node.totalShipping ?? {
+          amount: "0.00",
+          currencyCode: "PHP",
+        },
+        shippingAddress: node.shippingAddress
+          ? {
+              id: `addr-${node.id}`,
+              firstName: node.shippingAddress.firstName ?? "",
+              lastName: node.shippingAddress.lastName ?? "",
+              address1: node.shippingAddress.address1 ?? "",
+              address2: node.shippingAddress.address2 ?? null,
+              city: node.shippingAddress.city ?? "",
+              province: node.shippingAddress.zoneCode ?? "",
+              zip: node.shippingAddress.zip ?? "",
+              country: node.shippingAddress.country ?? "",
+              phone: "",
+              isDefault: false,
+            }
+          : null,
         lineItems: {
           edges: (node.lineItems?.edges ?? []).map(({ node: item }: any) => ({
             node: {
@@ -138,20 +179,29 @@ export default async function AccountPage() {
     }
   }
   return (
-    <div style={{ minHeight: "100vh", background: "#0d1117", position: "relative" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0d1117",
+        position: "relative",
+      }}
+    >
       <div
         style={{
           position: "fixed",
-          top: 0, left: 0, right: 0,
+          top: 0,
+          left: 0,
+          right: 0,
           height: "400px",
-          background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,168,48,0.06) 0%, transparent 70%)",
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(232,168,48,0.06) 0%, transparent 70%)",
           pointerEvents: "none",
           zIndex: 0,
         }}
       />
       <Navbar />
       <div style={{ position: "relative", zIndex: 1, paddingTop: "80px" }}>
-       <AccountClient
+        <AccountClient
           customerId={customer?.id ?? ""}
           shopifyToken={token ?? ""}
           customer={customerData}
