@@ -6,6 +6,13 @@ export interface CustomerDocument extends Document {
   email?: string;
   phone?: string;
   numberOfOrders?: number;
+  disabled: boolean;
+  disableReason?: string;
+  appeal?: {
+    message: string;
+    submittedAt: Date;
+    status: "pending" | "resolved";
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +24,13 @@ const CustomerSchema = new Schema<CustomerDocument>(
     email: { type: String },
     phone: { type: String },
     numberOfOrders: { type: Number, default: 0 },
+    disabled: { type: Boolean, default: false },
+    disableReason: { type: String },
+    appeal: {
+      message: { type: String },
+      submittedAt: { type: Date },
+      status: { type: String, enum: ["pending", "resolved"], default: "pending" },
+    },
   },
   { timestamps: true },
 );

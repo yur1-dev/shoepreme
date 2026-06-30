@@ -37,9 +37,22 @@ const ICON_PRODUCTS = (
   </svg>
 );
 
+const ICON_CUSTOMERS = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <circle cx="8" cy="5.5" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+    <path
+      d="M2.5 13c0-2.485 2.462-4.5 5.5-4.5s5.5 2.015 5.5 4.5"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 const NAV = [
   { href: "/admin", label: "Orders", icon: ICON_ORDERS },
   { href: "/admin/products", label: "Products", icon: ICON_PRODUCTS },
+  { href: "/admin/customers", label: "Customers", icon: ICON_CUSTOMERS },
 ];
 
 export default function AdminLayout({
@@ -165,26 +178,6 @@ export default function AdminLayout({
 
           {/* Coming soon items — visible but disabled so layout feels complete */}
           {[
-            {
-              label: "Customers",
-              icon: (
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <circle
-                    cx="8"
-                    cy="5.5"
-                    r="2.5"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                  />
-                  <path
-                    d="M2.5 13c0-2.485 2.462-4.5 5.5-4.5s5.5 2.015 5.5 4.5"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              ),
-            },
             {
               label: "Analytics",
               icon: (

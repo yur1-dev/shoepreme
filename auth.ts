@@ -58,6 +58,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     } as any, // remove this once you confirm it connects — silences a TS shape mismatch, doesn't affect runtime
   ],
   callbacks: {
+    async signIn({ account }) {
+      if (!account?.id_token) return true;
+      try {
+        const idPayload = JSON.parse(
+          Buffer.from(account.id_token.split(".")[1], "base64url").toString(),
+        );
+        const shopifyCustomerId = idPayload.sub;
+
+        const { connectToDatabase } = await import("@/lib/mongodb");
+        const { Customer } = await import("@/models/customer");
+        await connectToDatabase();
+
+        const dbCustomer: any = await Customer.findOne({
+          shopifyCustomerId: String(shopifyCustomerId),
+        }).lean();
+
+        if (dbCustomer?.disabled) {
+          const reasonParam = dbCustomer.disableReason
+            ? `&reason=${encodeURIComponent(dbCustomer.disableReason)}`
+            : "";
+          const emailParam = idPayload.email
+            ? `&email=${encodeURIComponent(idPayload.email)}`
+            : "";
+          return `/account/login?error=AccountDisabled${reasonParam}${emailParam}`;
+        }
+      } catch (err) {
+        console.error("signIn disabled check failed", err);
+      }
+      return true;
+    },
+
     async jwt({ token, account }) {
       if (account) {
         token.shopifyAccessToken = account.access_token;
@@ -75,6 +106,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             [first, last].filter(Boolean).join(" ") || undefined;
         } catch {
           // name fetch failed, fallback to email on frontend
+        }
+
+        // Check if this customer's account is disabled
+        try {
+          const { connectToDatabase } = await import("@/lib/mongodb");
+          const { Customer } = await import("@/models/customer");
+          await connectToDatabase();
+
+          const idPayload = JSON.parse(
+            Buffer.from(account.id_token!.split(".")[1], "base64url").toString(),
+          );
+          const shopifyCustomerId = idPayload.sub;
+
+          const dbCustomer: any = await Customer.findOne({
+            shopifyCustomerId,
+          }).lean();
+
+          if (dbCustomer?.disabled) {
+            token.disabled = true;
+          }
+        } catch (err) {
+          console.error("Failed to check disabled status", err);
         }
       }
 
@@ -107,6 +160,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.shopifyCustomerName = token.shopifyCustomerName as
         | string
         | undefined;
+      (session as any).disabled = token.disabled ?? false;
       return session;
     },
   },

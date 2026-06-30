@@ -5,5 +5,8 @@ import { authConfig } from "./auth.config";
 export default NextAuth(authConfig).auth;
 
 export const config = {
-  matcher: ["/account/((?!preview).*)"],
+  matcher: [
+    "/account",
+    "/account/((?!preview|login|signup).*)",
+  ],
 };

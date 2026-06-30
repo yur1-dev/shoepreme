@@ -1048,3 +1048,35 @@ export async function setFulfillmentOrderStatus(
   if (errors.length) return { success: false, error: errors[0].message };
   return { success: true };
 }
+export async function getCustomers(first = 100) {
+  const data = await adminFetch(
+    `
+    query getCustomers($first: Int!) {
+      customers(first: $first, sortKey: CREATED_AT, reverse: true) {
+        edges {
+          node {
+            id
+            email
+            firstName
+            lastName
+            phone
+            numberOfOrders
+            amountSpent { amount currencyCode }
+            createdAt
+            state
+            tags
+          }
+        }
+      }
+    }
+  `,
+    { first },
+  );
+
+  if (data.errors) {
+    console.error("Shopify customers query error:", JSON.stringify(data.errors, null, 2));
+    return [];
+  }
+
+  return data?.data?.customers?.edges?.map((e: any) => e.node) ?? [];
+}
