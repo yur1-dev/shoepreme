@@ -63,6 +63,9 @@ export default function AdminOrdersPage() {
   );
  const { toast, showToast } = useToast();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [trackingOrder, setTrackingOrder] = useState<any | null>(null);
+  const [trackingCarrier, setTrackingCarrier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -138,7 +141,11 @@ export default function AdminOrdersPage() {
       setActionLoading(null);
     }
   }
-  async function handleSetStatus(e: React.MouseEvent, orderId: string, status: "IN_PROGRESS" | "ON_HOLD") {
+  async function handleSetStatus(
+    e: React.MouseEvent,
+    orderId: string,
+    status: "IN_PROGRESS" | "ON_HOLD" | "RELEASE_HOLD",
+  ) {
     e.stopPropagation();
     setActionLoading(orderId);
     try {
@@ -149,7 +156,73 @@ export default function AdminOrdersPage() {
       });
       const data = await res.json();
       data.success
-        ? showToast(`Order marked as ${status.replace("_", " ").toLowerCase()} ✓`)
+        ? showToast(`Order updated ✓`)
+        : showToast("Failed: " + data.error, false);
+      if (data.success) await fetchOrders();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleUnfulfill(e: React.MouseEvent, orderId: string) {
+    e.stopPropagation();
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/unfulfill-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      data.success
+        ? showToast("Order marked unfulfilled ✓")
+        : showToast("Failed: " + data.error, false);
+      if (data.success) await fetchOrders();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleAddTracking() {
+    if (!trackingOrder) return;
+    setActionLoading(trackingOrder.id);
+    try {
+      const res = await fetch("/api/admin/add-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: trackingOrder.id,
+          carrier: trackingCarrier,
+          number: trackingNumber,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Tracking added ✓");
+        setTrackingOrder(null);
+        setTrackingCarrier("");
+        setTrackingNumber("");
+        await fetchOrders();
+      } else {
+        showToast("Failed: " + data.error, false);
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleMarkDelivered(e: React.MouseEvent, orderId: string) {
+    e.stopPropagation();
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/mark-delivered", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      data.success
+        ? showToast("Order marked delivered ✓")
         : showToast("Failed: " + data.error, false);
       if (data.success) await fetchOrders();
     } finally {
@@ -376,7 +449,10 @@ export default function AdminOrdersPage() {
               const canChangeStatus =
                 !isVoided && order.displayFinancialStatus === "PAID";
               const canCancel =
-                !isVoided && !isFulfilled;
+                !isVoided &&
+                !isFulfilled &&
+                order.displayFinancialStatus !== "PAID";
+              const onHold = order.displayFulfillmentStatus === "ON_HOLD";
               const addressLines = formatAddress(order.shippingAddress);
               const items =
                 order.lineItems?.edges?.map((e: any) => e.node) ?? [];
@@ -506,97 +582,136 @@ export default function AdminOrdersPage() {
                           {isBusy ? "…" : "Mark Paid"}
                         </ActionButton>
                       )}
-                      {canFulfill && (
-                        <div style={{ position: "relative", display: "flex" }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleFulfill(e, order.id); }}
-                            disabled={isBusy}
-                            style={{
-                              padding: "5px 10px",
-                              borderRadius: "7px 0 0 7px",
-                              background: "rgba(74,222,128,0.1)",
-                              border: "1px solid rgba(74,222,128,0.25)",
-                              borderRight: "none",
-                              color: "#4ade80",
-                              fontFamily: "monospace",
-                              fontSize: 9,
-                              fontWeight: 700,
-                              letterSpacing: "0.08em",
-                              cursor: isBusy ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {isBusy ? "…" : "Fulfill"}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenDropdown(openDropdown === order.id ? null : order.id);
-                            }}
-                            disabled={isBusy}
-                            style={{
-                              padding: "5px 7px",
-                              borderRadius: "0 7px 7px 0",
-                              background: "rgba(74,222,128,0.1)",
-                              border: "1px solid rgba(74,222,128,0.25)",
-                              color: "#4ade80",
-                              fontSize: 9,
-                              cursor: isBusy ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            ▾
-                          </button>
-                          {openDropdown === order.id && (
-                            <div
+
+                      {!isVoided && order.displayFinancialStatus === "PAID" && (
+                        <>
+                          {isFulfilled ? (
+                            <>
+                              <ActionButton
+                                onClick={(e: any) => {
+                                  e.stopPropagation();
+                                  setTrackingOrder(order);
+                                }}
+                                disabled={isBusy}
+                                variant="ghost"
+                                small
+                              >
+                                + Tracking
+                              </ActionButton>
+                              <ActionButton
+                                onClick={(e: any) => handleMarkDelivered(e, order.id)}
+                                disabled={isBusy}
+                                variant="green"
+                                small
+                              >
+                                {isBusy ? "…" : "Delivered"}
+                              </ActionButton>
+                            </>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleFulfill(e, order.id); }}
+                              disabled={isBusy}
                               style={{
-                                position: "absolute",
-                                top: "calc(100% + 6px)",
-                                right: 0,
-                                background: "#0f131c",
-                                border: "1px solid rgba(255,255,255,0.1)",
-                                borderRadius: 10,
-                                overflow: "hidden",
-                                zIndex: 100,
-                                minWidth: 150,
-                                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                                padding: "5px 10px",
+                                borderRadius: "7px 0 0 7px",
+                                background: "rgba(74,222,128,0.1)",
+                                border: "1px solid rgba(74,222,128,0.25)",
+                                borderRight: "none",
+                                color: "#4ade80",
+                                fontFamily: "monospace",
+                                fontSize: 9,
+                                fontWeight: 700,
+                                letterSpacing: "0.08em",
+                                cursor: isBusy ? "not-allowed" : "pointer",
                               }}
                             >
-                              {[
-                                { label: "In Progress", value: "IN_PROGRESS", color: "#e8a830" },
-                                { label: "On Hold", value: "ON_HOLD", color: "#f87171" },
-                              ].map((opt, i, arr) => (
-                                <button
-                                  key={opt.value}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDropdown(null);
-                                    handleSetStatus(e, order.id, opt.value as any);
-                                  }}
-                                  style={{
-                                    display: "block",
-                                    width: "100%",
-                                    padding: "10px 14px",
-                                    background: "transparent",
-                                    border: "none",
-                                    borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                                    color: opt.color,
-                                    fontFamily: "monospace",
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    letterSpacing: "0.08em",
-                                    cursor: "pointer",
-                                    textAlign: "left",
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
+                              {isBusy ? "…" : "Fulfill"}
+                            </button>
                           )}
-                        </div>
+
+                          <div style={{ position: "relative", display: "flex" }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdown(openDropdown === order.id ? null : order.id);
+                              }}
+                              disabled={isBusy}
+                              style={{
+                                padding: "5px 9px",
+                                borderRadius: isFulfilled ? 7 : "0 7px 7px 0",
+                                background: "rgba(74,222,128,0.1)",
+                                border: "1px solid rgba(74,222,128,0.25)",
+                                color: "#4ade80",
+                                fontSize: 9,
+                                cursor: isBusy ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              ▾
+                            </button>
+                            {openDropdown === order.id && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "calc(100% + 6px)",
+                                  right: 0,
+                                  background: "#0f131c",
+                                  border: "1px solid rgba(255,255,255,0.1)",
+                                  borderRadius: 10,
+                                  overflow: "hidden",
+                                  zIndex: 100,
+                                  minWidth: 150,
+                                  boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                                }}
+                              >
+                                {[
+                                  ...(onHold
+                                    ? [{ label: "In Progress", action: "release" as const, color: "#e8a830" }]
+                                    : [
+                                        { label: "In Progress", action: "in_progress" as const, color: "#e8a830" },
+                                        { label: "On Hold", action: "on_hold" as const, color: "#f87171" },
+                                      ]),
+                                  isFulfilled
+                                    ? { label: "Unfulfilled", action: "unfulfill" as const, color: "#9ca3af" }
+                                    : { label: "Fulfilled", action: "fulfill" as const, color: "#4ade80" },
+                                ].map((opt, i, arr) => (
+                                  <button
+                                    key={opt.label}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenDropdown(null);
+                                      if (opt.action === "release") handleSetStatus(e, order.id, "RELEASE_HOLD");
+                                      else if (opt.action === "in_progress") handleSetStatus(e, order.id, "IN_PROGRESS");
+                                      else if (opt.action === "on_hold") handleSetStatus(e, order.id, "ON_HOLD");
+                                      else if (opt.action === "fulfill") handleFulfill(e, order.id);
+                                      else if (opt.action === "unfulfill") handleUnfulfill(e, order.id);
+                                    }}
+                                    style={{
+                                      display: "block",
+                                      width: "100%",
+                                      padding: "10px 14px",
+                                      background: "transparent",
+                                      border: "none",
+                                      borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                                      color: opt.color,
+                                      fontFamily: "monospace",
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      letterSpacing: "0.08em",
+                                      cursor: "pointer",
+                                      textAlign: "left",
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
                       )}
-                      
+
                       {canCancel && (
                         <ActionButton
                           onClick={(e: any) => handleCancel(e, order.id)}
@@ -1098,6 +1213,151 @@ export default function AdminOrdersPage() {
                 }}
               >
                 Confirm Payment
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Add Tracking Modal ── */}
+      {trackingOrder && (
+        <>
+          <div
+            onClick={() => setTrackingOrder(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(6px)",
+              zIndex: 99998,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(420px, calc(100vw - 48px))",
+              background: "#0d1117",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "18px",
+              padding: "28px",
+              zIndex: 99999,
+              display: "flex",
+              flexDirection: "column",
+              gap: "18px",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(240,244,248,0.3)",
+                  margin: "0 0 3px",
+                }}
+              >
+                Add Tracking
+              </p>
+              <h3
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.5rem",
+                  letterSpacing: "0.05em",
+                  color: "#f0f4f8",
+                  margin: 0,
+                }}
+              >
+                {trackingOrder.name}
+              </h3>
+            </div>
+            <div>
+              <FieldLabel>Shipping Carrier</FieldLabel>
+              <input
+                value={trackingCarrier}
+                onChange={(e) => setTrackingCarrier(e.target.value)}
+                placeholder="e.g. J&T Express, LBC, Ninja Van"
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  color: "#f5f7f9",
+                  fontFamily: "Poppins, sans-serif",
+                  fontSize: 12,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div>
+              <FieldLabel>Tracking Number</FieldLabel>
+              <input
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder="e.g. 1234567890"
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  color: "#f5f7f9",
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => setTrackingOrder(null)}
+                style={{
+                  flex: 1,
+                  padding: "13px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "10px",
+                  color: "rgba(240,244,248,0.4)",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddTracking}
+                disabled={!trackingCarrier.trim() || !trackingNumber.trim()}
+                style={{
+                  flex: 2,
+                  padding: "13px",
+                  background: "#e8a830",
+                  border: "none",
+                  borderRadius: "10px",
+                  color: "#0d1117",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                  cursor:
+                    !trackingCarrier.trim() || !trackingNumber.trim()
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity: !trackingCarrier.trim() || !trackingNumber.trim() ? 0.6 : 1,
+                }}
+              >
+                Save Tracking
               </button>
             </div>
           </div>
