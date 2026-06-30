@@ -201,16 +201,10 @@ const ORDER_TABS: {
   filter: (o: Order) => boolean;
 }[] = [
   { key: "all", label: "All", filter: () => true },
- {
+  {
     key: "to-pay",
     label: "To Pay",
     filter: (o) => o.financialStatus === "PENDING",
-  },
-  {
-    key: "pending",
-    label: "Pending",
-    filter: (o) =>
-      o.financialStatus === "PAID" && o.fulfillmentStatus === "UNFULFILLED",
   },
   {
     key: "to-ship",
@@ -616,7 +610,9 @@ function CancelOrderButton({ order }: { order: Order }) {
     const numericId = (order.id.split("/").pop() ?? order.id).split("?")[0];
     fetch(`/api/account-api/orders/${numericId}/cancel`)
       .then((r) => r.json())
-      .then((d) => { if (d.cancelled) setCancelled(true); })
+      .then((d) => {
+        if (d.cancelled) setCancelled(true);
+      })
       .catch(() => {});
   }, [order.id]);
 
@@ -865,10 +861,7 @@ function OrderDetail({
   const items = order.lineItems.edges.map((e) => e.node);
   const addr = order.shippingAddress;
   const isPending = order.financialStatus === "PENDING";
-  const isCancellable =
-    order.financialStatus === "PENDING" ||
-    (order.financialStatus === "PAID" &&
-      order.fulfillmentStatus === "UNFULFILLED");
+  const isCancellable = order.financialStatus === "PENDING";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -3696,7 +3689,9 @@ export default function AccountClient({
   const [activeSection, setActiveSection] = useState<Section>("orders");
   const [liveCustomer, setLiveCustomer] = useState<CustomerData>(customer);
   const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [ordersLoading, setOrdersLoading] = useState(initialOrders.length === 0);
+  const [ordersLoading, setOrdersLoading] = useState(
+    initialOrders.length === 0,
+  );
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeOrderTab, setActiveOrderTab] = useState("all");
   const [mobileOrdersView, setMobileOrdersView] = useState(false);

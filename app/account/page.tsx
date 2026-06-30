@@ -16,6 +16,8 @@ function normalizeId(id: string) {
 export default async function AccountPage() {
   const session = await auth();
   if (!session?.user) redirect("/account/login");
+  if (!session.shopifyAccessToken)
+    redirect("/account/login?error=SessionExpired");
 
   const token = session.shopifyAccessToken;
   let customer: {
