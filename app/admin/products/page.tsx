@@ -48,6 +48,7 @@ interface DraftProduct {
   >;
   newVariantPrice?: string;
   newVariantQty?: string;
+  newImageFiles?: File[];
 }
 
 type ModalState =
@@ -67,10 +68,9 @@ function emptyDraft(): DraftProduct {
     sizes: [],
     sizeInput: "",
     stockEdits: {},
+    newImageFiles: [],
   };
-}
-
-function draftFromProduct(product: any): DraftProduct {
+}function draftFromProduct(product: any): DraftProduct {
   const firstVariant = product.variants?.edges?.[0]?.node;
   const sizes = (product.variants?.edges ?? [])
     .map(
@@ -108,6 +108,168 @@ function draftFromProduct(product: any): DraftProduct {
   };
 }
 
+function NewProductImageDropzone({
+  files,
+  onFilesChange,
+}: {
+  files: File[];
+  onFilesChange: (files: File[]) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
+
+  function handleFiles(fileList: FileList | null) {
+    if (!fileList) return;
+    const newFiles = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (newFiles.length > 0) {
+      onFilesChange([...files, ...newFiles]);
+    }
+  }
+
+  function removeAt(index: number) {
+    onFilesChange(files.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+        onClick={() => inputRef.current?.click()}
+        style={{
+          border: `1.5px dashed ${dragOver ? "rgba(232,168,48,0.6)" : "rgba(255,255,255,0.15)"}`,
+          borderRadius: 12,
+          background: dragOver ? "rgba(232,168,48,0.05)" : "rgba(255,255,255,0.02)",
+          padding: "24px 16px",
+          textAlign: "center",
+          cursor: "pointer",
+          transition: "all 0.15s",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(232,168,48,0.5)"
+          strokeWidth="1.5"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: 10,
+            color: "rgba(240,244,248,0.4)",
+            margin: 0,
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+          }}
+        >
+          Drag & drop images, or click to browse
+        </p>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: 8,
+            color: "rgba(240,244,248,0.2)",
+            margin: 0,
+          }}
+        >
+          Multiple images supported · JPG, PNG, WEBP · max ~4 MB each
+        </p>
+      </div>
+
+      {previews.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 12,
+          }}
+        >
+          {previews.map((src, i) => (
+            <div
+              key={i}
+              style={{
+                position: "relative",
+                width: 72,
+                height: 72,
+                borderRadius: 8,
+                overflow: "hidden",
+                border: "1px solid rgba(255,255,255,0.08)",
+                flexShrink: 0,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeAt(i);
+                }}
+                style={{
+                  position: "absolute",
+                  top: 3,
+                  right: 3,
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  background: "rgba(0,0,0,0.7)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "#f87171",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── Product Modal ─────────────────────────────────────────────────────────
 
 function ProductModal({
@@ -276,6 +438,29 @@ function ProductModal({
           showToast("Create failed: " + data.error, false);
           return;
         }
+
+        // Upload all images sequentially if any were selected
+        if (draft.newImageFiles && draft.newImageFiles.length > 0 && data.product?.id) {
+          let failedCount = 0;
+          for (const file of draft.newImageFiles) {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("productId", data.product.id);
+            const imgRes = await fetch("/api/admin/upload-product-image", {
+              method: "POST",
+              body: fd,
+            });
+            const imgData = await imgRes.json();
+            if (!imgData.success) failedCount++;
+          }
+          if (failedCount > 0) {
+            showToast(`Product created, but ${failedCount} image(s) failed to upload`, false);
+            onSaved();
+            onClose();
+            return;
+          }
+        }
+
         showToast("Product created ✓");
       }
       onSaved();
@@ -386,6 +571,17 @@ function ProductModal({
             gap: 22,
           }}
         >
+          {/* Images — new product only, drag & drop, multiple */}
+          {!isEdit && (
+            <div>
+              <FieldLabel>Product Images</FieldLabel>
+              <NewProductImageDropzone
+                files={draft.newImageFiles ?? []}
+                onFilesChange={(files) => upd("newImageFiles" as any, files)}
+              />
+            </div>
+          )}
+
           {/* Images — edit only */}
           {isEdit && (
             <div>
@@ -567,11 +763,45 @@ function ProductModal({
             </div>
             <div>
               <FieldLabel>Category</FieldLabel>
-              <TextInput
+              <select
                 value={draft.productType}
-                onChange={(v) => upd("productType", v)}
-                placeholder="e.g. Sneakers, Running"
-              />
+                onChange={(e) => upd("productType", e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  padding: "9px 12px",
+                  color: "#f0f4f8",
+                  fontFamily: "Poppins, sans-serif",
+                  fontSize: 12,
+                  outline: "none",
+                  appearance: "none",
+                  cursor: "pointer",
+                }}
+                onFocus={(e) =>
+                  (e.currentTarget.style.borderColor = "rgba(232,168,48,0.4)")
+                }
+                onBlur={(e) =>
+                  (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")
+                }
+              >
+                <option value="" style={{ background: "#0f131c" }}>
+                  Select category…
+                </option>
+                {[
+                  "Men",
+                  "Women",
+                  "Basketball & Court",
+                  "Running",
+                  "Trail",
+                  "Sneakers",
+                ].map((cat) => (
+                  <option key={cat} value={cat} style={{ background: "#0f131c" }}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
