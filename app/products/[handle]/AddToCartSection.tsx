@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import ReserveModal from "@/components/ui/ReserveModal";
 
 interface Variant {
   id: string;
@@ -32,6 +33,7 @@ export default function AddToCartSection({
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
+  const [showReserve, setShowReserve] = useState(false);
 
   // Find matching variant for selected options
   const selectedVariant =
@@ -226,7 +228,12 @@ export default function AddToCartSection({
       <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
         <button
           onClick={async () => {
-            if (!selectedVariant?.id || !isAvailable || buyingNow) return;
+            if (!selectedVariant?.id) return;
+            if (!isAvailable) {
+              setShowReserve(true);
+              return;
+            }
+            if (buyingNow) return;
             setBuyingNow(true);
             try {
               await addToCart(selectedVariant.id, quantity);
@@ -235,11 +242,11 @@ export default function AddToCartSection({
               setBuyingNow(false);
             }
           }}
-          disabled={!isAvailable || buyingNow || isLoading}
+          disabled={buyingNow || isLoading}
           style={{
             flex: 1,
-            background: isAvailable ? "#e8a830" : "rgba(255,255,255,0.06)",
-            color: isAvailable ? "#06090e" : "rgba(245,247,249,0.25)",
+            background: "#e8a830",
+            color: "#06090e",
             border: "none",
             padding: "17px 32px",
             borderRadius: "10px",
@@ -247,17 +254,27 @@ export default function AddToCartSection({
             fontWeight: 900,
             letterSpacing: "0.2em",
             textTransform: "uppercase",
-            cursor: isAvailable && !buyingNow && !isLoading ? "pointer" : "not-allowed",
+            cursor: !buyingNow && !isLoading ? "pointer" : "not-allowed",
             fontFamily: "inherit",
             transition: "all 0.2s ease",
           }}
         >
-          {!isAvailable ? "Sold Out" : buyingNow ? "Checking Out…" : "Buy Now"}
+          {!isAvailable
+            ? "Reserve — Pay Once Confirmed"
+            : buyingNow
+              ? "Checking Out…"
+              : "Buy Now"}
         </button>
 
         <button
-          onClick={handleAddToCart}
-          disabled={!isAvailable || adding || isLoading}
+          onClick={() => {
+            if (!isAvailable) {
+              setShowReserve(true);
+              return;
+            }
+            handleAddToCart();
+          }}
+          disabled={adding || isLoading}
           style={{
             flex: 1,
             minWidth: 0,
@@ -270,7 +287,7 @@ export default function AddToCartSection({
               ? "#22c55e"
               : isAvailable
                 ? "#06090e"
-                : "rgba(245,247,249,0.25)",
+                : "rgba(245,247,249,0.7)",
             border: added ? "1px solid rgba(34,197,94,0.3)" : "none",
             padding: "17px 32px",
             borderRadius: "10px",
@@ -278,14 +295,13 @@ export default function AddToCartSection({
             fontWeight: 900,
             letterSpacing: "0.2em",
             textTransform: "uppercase",
-            cursor:
-              isAvailable && !adding && !isLoading ? "pointer" : "not-allowed",
+            cursor: !adding && !isLoading ? "pointer" : "not-allowed",
             fontFamily: "inherit",
             transition: "all 0.2s ease",
           }}
         >
           {!isAvailable
-            ? "Sold Out"
+            ? "Reserve"
             : added
               ? "✓ Added to Bag"
               : adding
@@ -328,8 +344,18 @@ export default function AddToCartSection({
             letterSpacing: "0.04em",
           }}
         >
-          This variant is sold out. Message us to request a pre-order.
+          Sourced from abroad — reserve now, no payment required until we
+          confirm stock.
         </p>
+      )}
+
+      {showReserve && selectedVariant && (
+        <ReserveModal
+          variantId={selectedVariant.id}
+          productTitle=""
+          variantTitle={selectedVariant.title}
+          onClose={() => setShowReserve(false)}
+        />
       )}
     </div>
   );

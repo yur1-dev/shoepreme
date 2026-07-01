@@ -61,7 +61,7 @@ export default function AdminOrdersPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     "Pay In-Store (Cash)",
   );
- const { toast, showToast } = useToast();
+  const { toast, showToast } = useToast();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<any | null>(null);
   const [trackingCarrier, setTrackingCarrier] = useState("");
@@ -431,15 +431,16 @@ export default function AdminOrdersPage() {
             filtered.map((order) => {
               const isBusy = actionLoading === order.id;
               const isExpanded = expandedId === order.id;
-              const isVoided = 
+              const isVoided =
                 !!order.cancelledAt ||
-                order.displayFinancialStatus === "VOIDED" || 
+                order.displayFinancialStatus === "VOIDED" ||
                 order.displayFinancialStatus === "REFUNDED" ||
                 order.displayFinancialStatus === "CANCELLED" ||
                 order.displayFulfillmentStatus === "CANCELLED" ||
                 order.displayFulfillmentStatus === "RESTOCKED";
               const canMarkPaid = order.displayFinancialStatus === "PENDING";
-              const isFulfilled = order.displayFulfillmentStatus === "FULFILLED";
+              const isFulfilled =
+                order.displayFulfillmentStatus === "FULFILLED";
               const canFulfill =
                 !isVoided &&
                 order.displayFinancialStatus === "PAID" &&
@@ -565,7 +566,11 @@ export default function AdminOrdersPage() {
                     </span>
 
                     <div
-                      style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        justifyContent: "flex-end",
+                      }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {canMarkPaid && (
@@ -599,7 +604,9 @@ export default function AdminOrdersPage() {
                                 + Tracking
                               </ActionButton>
                               <ActionButton
-                                onClick={(e: any) => handleMarkDelivered(e, order.id)}
+                                onClick={(e: any) =>
+                                  handleMarkDelivered(e, order.id)
+                                }
                                 disabled={isBusy}
                                 variant="green"
                                 small
@@ -609,7 +616,10 @@ export default function AdminOrdersPage() {
                             </>
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleFulfill(e, order.id); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFulfill(e, order.id);
+                              }}
                               disabled={isBusy}
                               style={{
                                 padding: "5px 10px",
@@ -629,11 +639,15 @@ export default function AdminOrdersPage() {
                             </button>
                           )}
 
-                          <div style={{ position: "relative", display: "flex" }}>
+                          <div
+                            style={{ position: "relative", display: "flex" }}
+                          >
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenDropdown(openDropdown === order.id ? null : order.id);
+                                setOpenDropdown(
+                                  openDropdown === order.id ? null : order.id,
+                                );
                               }}
                               disabled={isBusy}
                               style={{
@@ -665,25 +679,60 @@ export default function AdminOrdersPage() {
                               >
                                 {[
                                   ...(onHold
-                                    ? [{ label: "In Progress", action: "release" as const, color: "#e8a830" }]
+                                    ? [
+                                        {
+                                          label: "In Progress",
+                                          action: "release" as const,
+                                          color: "#e8a830",
+                                        },
+                                      ]
                                     : [
-                                        { label: "In Progress", action: "in_progress" as const, color: "#e8a830" },
-                                        { label: "On Hold", action: "on_hold" as const, color: "#f87171" },
+                                        {
+                                          label: "In Progress",
+                                          action: "in_progress" as const,
+                                          color: "#e8a830",
+                                        },
+                                        {
+                                          label: "On Hold",
+                                          action: "on_hold" as const,
+                                          color: "#f87171",
+                                        },
                                       ]),
                                   isFulfilled
-                                    ? { label: "Unfulfilled", action: "unfulfill" as const, color: "#9ca3af" }
-                                    : { label: "Fulfilled", action: "fulfill" as const, color: "#4ade80" },
+                                    ? {
+                                        label: "Unfulfilled",
+                                        action: "unfulfill" as const,
+                                        color: "#9ca3af",
+                                      }
+                                    : {
+                                        label: "Fulfilled",
+                                        action: "fulfill" as const,
+                                        color: "#4ade80",
+                                      },
                                 ].map((opt, i, arr) => (
                                   <button
                                     key={opt.label}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setOpenDropdown(null);
-                                      if (opt.action === "release") handleSetStatus(e, order.id, "RELEASE_HOLD");
-                                      else if (opt.action === "in_progress") handleSetStatus(e, order.id, "IN_PROGRESS");
-                                      else if (opt.action === "on_hold") handleSetStatus(e, order.id, "ON_HOLD");
-                                      else if (opt.action === "fulfill") handleFulfill(e, order.id);
-                                      else if (opt.action === "unfulfill") handleUnfulfill(e, order.id);
+                                      if (opt.action === "release")
+                                        handleSetStatus(
+                                          e,
+                                          order.id,
+                                          "RELEASE_HOLD",
+                                        );
+                                      else if (opt.action === "in_progress")
+                                        handleSetStatus(
+                                          e,
+                                          order.id,
+                                          "IN_PROGRESS",
+                                        );
+                                      else if (opt.action === "on_hold")
+                                        handleSetStatus(e, order.id, "ON_HOLD");
+                                      else if (opt.action === "fulfill")
+                                        handleFulfill(e, order.id);
+                                      else if (opt.action === "unfulfill")
+                                        handleUnfulfill(e, order.id);
                                     }}
                                     style={{
                                       display: "block",
@@ -691,7 +740,10 @@ export default function AdminOrdersPage() {
                                       padding: "10px 14px",
                                       background: "transparent",
                                       border: "none",
-                                      borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                                      borderBottom:
+                                        i < arr.length - 1
+                                          ? "1px solid rgba(255,255,255,0.05)"
+                                          : "none",
                                       color: opt.color,
                                       fontFamily: "monospace",
                                       fontSize: 10,
@@ -700,8 +752,14 @@ export default function AdminOrdersPage() {
                                       cursor: "pointer",
                                       textAlign: "left",
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                    onMouseEnter={(e) =>
+                                      (e.currentTarget.style.background =
+                                        "rgba(255,255,255,0.05)")
+                                    }
+                                    onMouseLeave={(e) =>
+                                      (e.currentTarget.style.background =
+                                        "transparent")
+                                    }
                                   >
                                     {opt.label}
                                   </button>
@@ -1354,7 +1412,8 @@ export default function AdminOrdersPage() {
                     !trackingCarrier.trim() || !trackingNumber.trim()
                       ? "not-allowed"
                       : "pointer",
-                  opacity: !trackingCarrier.trim() || !trackingNumber.trim() ? 0.6 : 1,
+                  opacity:
+                    !trackingCarrier.trim() || !trackingNumber.trim() ? 0.6 : 1,
                 }}
               >
                 Save Tracking

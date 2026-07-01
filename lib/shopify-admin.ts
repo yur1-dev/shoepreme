@@ -73,18 +73,28 @@ export async function fulfillOrder(orderId: string) {
   console.log("foData raw:", JSON.stringify(foData, null, 2));
 
   const fulfillmentOrders = foData?.data?.order?.fulfillmentOrders?.edges ?? [];
-  
-  console.log("Fulfillment orders:", JSON.stringify(fulfillmentOrders, null, 2));
+
+  console.log(
+    "Fulfillment orders:",
+    JSON.stringify(fulfillmentOrders, null, 2),
+  );
 
   // Take the first fulfillment order that supports createFulfillment, or just the first one
   const openFO =
     fulfillmentOrders.find((e: any) =>
-      e.node.supportedActions?.some((a: any) => a.action === "CREATE_FULFILLMENT")
+      e.node.supportedActions?.some(
+        (a: any) => a.action === "CREATE_FULFILLMENT",
+      ),
     ) ?? fulfillmentOrders[0];
 
   if (!openFO) {
-    const statuses = fulfillmentOrders.map((e: any) => e.node.status).join(", ");
-    return { success: false, error: `No open fulfillment order found. Statuses: ${statuses}` };
+    const statuses = fulfillmentOrders
+      .map((e: any) => e.node.status)
+      .join(", ");
+    return {
+      success: false,
+      error: `No open fulfillment order found. Statuses: ${statuses}`,
+    };
   }
 
   const data = await adminFetch(
@@ -168,7 +178,10 @@ export async function deleteProduct(productId: string) {
 
   const errors = data?.data?.productDelete?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
-  return { success: true, deletedId: data?.data?.productDelete?.deletedProductId };
+  return {
+    success: true,
+    deletedId: data?.data?.productDelete?.deletedProductId,
+  };
 }
 
 export async function cancelOrder(orderId: string) {
@@ -410,7 +423,8 @@ export async function updateVariantPrice(variantId: string, price: string) {
   );
 
   const productId = variantData?.data?.productVariant?.product?.id;
-  if (!productId) return { success: false, error: "Could not find product for variant" };
+  if (!productId)
+    return { success: false, error: "Could not find product for variant" };
 
   const data = await adminFetch(
     `
@@ -626,7 +640,8 @@ export async function createProduct(input: {
   // Step 2a: No sizes — update default variant price only
   if (!hasVariants) {
     const defaultVariantId = product.variants?.edges?.[0]?.node?.id;
-    const defaultInventoryItemId = product.variants?.edges?.[0]?.node?.inventoryItem?.id;
+    const defaultInventoryItemId =
+      product.variants?.edges?.[0]?.node?.inventoryItem?.id;
 
     if (defaultVariantId) {
       await adminFetch(
@@ -950,14 +965,12 @@ export async function adjustInventoryDelta(
   const locationId = await getPrimaryLocationId();
   console.log("adjustInventoryDelta locationId:", locationId);
   if (!locationId) return { success: false, error: "No location found" };
-    console.log("adjustInventoryDelta inventoryItemId:", inventoryItemId);
-  
+  console.log("adjustInventoryDelta inventoryItemId:", inventoryItemId);
 
   // Always activate first to ensure inventory is tracked at this location
   await connectInventoryToLocation(inventoryItemId);
 
   const data = await adminFetch(
-    
     `
     mutation inventoryAdjustQuantities($input: InventoryAdjustQuantitiesInput!) {
       inventoryAdjustQuantities(input: $input) {
@@ -983,11 +996,12 @@ export async function adjustInventoryDelta(
 
   console.log("full response:", JSON.stringify(data, null, 2));
   // Check top-level API errors (access denied, etc.)
-if (data?.errors?.length) return { success: false, error: data.errors[0].message };
+  if (data?.errors?.length)
+    return { success: false, error: data.errors[0].message };
 
-const errors = data?.data?.inventoryAdjustQuantities?.userErrors;
-if (errors?.length) return { success: false, error: errors[0].message };
-return { success: true };
+  const errors = data?.data?.inventoryAdjustQuantities?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
 }
 export async function setFulfillmentOrderStatus(
   orderId: string,
@@ -1074,9 +1088,72 @@ export async function getCustomers(first = 100) {
   );
 
   if (data.errors) {
-    console.error("Shopify customers query error:", JSON.stringify(data.errors, null, 2));
+    console.error(
+      "Shopify customers query error:",
+      JSON.stringify(data.errors, null, 2),
+    );
     return [];
   }
 
   return data?.data?.customers?.edges?.map((e: any) => e.node) ?? [];
+}
+
+// ─── Draft Orders (Reserve / Preorder flow) ────────────────────────────────
+
+export async function createDraftOrder(input: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  variantId: string;
+  quantity: number;
+  note?: string;
+}) {
+  const data = await adminFetch(
+    `
+    mutation draftOrderCreate($input: DraftOrderInput!) {
+      draftOrderCreate(input: $input) {
+        draftOrder {
+          id
+          name
+          invoiceUrl
+          customer { id email }
+        }
+        userErrors { field message }
+      }
+    }
+  `,
+    {
+      input: {
+        email: input.email,
+        note: input.note ?? "Reserved — preorder, pending stock confirmation",
+        tags: ["preorder", "reserve"],
+        lineItems: [
+          {
+            variantId: input.variantId,
+            quantity: input.quantity,
+          },
+        ],
+        ...(input.phone || input.firstName || input.lastName
+          ? {
+              shippingAddress: {
+                firstName: input.firstName,
+                lastName: input.lastName,
+                phone: input.phone,
+              },
+            }
+          : {}),
+      },
+    },
+  );
+
+  const errors = data?.data?.draftOrderCreate?.userErrors;
+  if (errors?.length) {
+    return { success: false, error: errors[0].message };
+  }
+
+  return {
+    success: true,
+    draftOrder: data?.data?.draftOrderCreate?.draftOrder,
+  };
 }
