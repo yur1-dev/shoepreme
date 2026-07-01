@@ -1292,3 +1292,91 @@ export async function createDraftOrder(input: {
     draftOrder: data?.data?.draftOrderCreate?.draftOrder,
   };
 }
+// Add to lib/shopify-admin.ts
+
+export async function addTrackingToOrder(
+  orderId: string,
+  carrier: string,
+  number: string,
+) {
+  const foData = await adminFetch(
+    `
+    query getFulfillments($id: ID!) {
+      order(id: $id) {
+        fulfillments(first: 5) {
+          id
+        }
+      }
+    }
+  `,
+    { id: orderId },
+  );
+
+  const fulfillmentId = foData?.data?.order?.fulfillments?.[0]?.id;
+  if (!fulfillmentId) {
+    return { success: false, error: "No fulfillment found for this order" };
+  }
+
+  const data = await adminFetch(
+    `
+    mutation fulfillmentTrackingInfoUpdate($fulfillmentId: ID!, $trackingInfoInput: FulfillmentTrackingInput!) {
+      fulfillmentTrackingInfoUpdate(fulfillmentId: $fulfillmentId, trackingInfoInput: $trackingInfoInput) {
+        fulfillment { id }
+        userErrors { field message }
+      }
+    }
+  `,
+    {
+      fulfillmentId,
+      trackingInfoInput: {
+        company: carrier,
+        numbers: [number],
+      },
+    },
+  );
+
+  const errors = data?.data?.fulfillmentTrackingInfoUpdate?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
+
+export async function markOrderDelivered(orderId: string) {
+  const foData = await adminFetch(
+    `
+    query getFulfillments($id: ID!) {
+      order(id: $id) {
+        fulfillments(first: 5) {
+          id
+        }
+      }
+    }
+  `,
+    { id: orderId },
+  );
+
+  const fulfillmentId = foData?.data?.order?.fulfillments?.[0]?.id;
+  if (!fulfillmentId) {
+    return { success: false, error: "No fulfillment found for this order" };
+  }
+
+  const data = await adminFetch(
+    `
+    mutation fulfillmentEventCreate($fulfillmentEvent: FulfillmentEventInput!) {
+      fulfillmentEventCreate(fulfillmentEvent: $fulfillmentEvent) {
+        fulfillmentEvent { id status }
+        userErrors { field message }
+      }
+    }
+  `,
+    {
+      fulfillmentEvent: {
+        fulfillmentId,
+        status: "DELIVERED",
+      },
+    },
+  );
+
+  const errors = data?.data?.fulfillmentEventCreate?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
