@@ -270,27 +270,180 @@ function NewProductImageDropzone({
     </div>
   );
 }
+
+// Safely parse a fetch Response as JSON. If the server returned something
+// that isn't JSON (an HTML 404/500 page, an empty body, etc.) this returns a
+// { success: false, error } shape instead of throwing "Unexpected token '<'".
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      success: false,
+      error:
+        res.status === 404
+          ? `Endpoint not found (404) — this API route isn't set up yet`
+          : `Server returned ${res.status}`,
+    };
+  }
+}
 // ─── Product Modal ─────────────────────────────────────────────────────────
 
 function ProductModal({
   modal,
   onClose,
   onSaved,
+  onSizeAdded,
   showToast,
 }: {
   modal: Exclude<ModalState, null>;
   onClose: () => void;
   onSaved: () => void;
+  onSizeAdded: (productId: string) => void;
   showToast: (msg: string, ok?: boolean) => void;
 }) {
   const [draft, setDraft] = useState<DraftProduct>(modal.draft);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const sizeRef = useRef<HTMLInputElement>(null);
   const isEdit = modal.mode === "edit";
   const product = isEdit ? (modal as any).product : null;
   const oos = product ? product.totalInventory === 0 : false;
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [addingSize, setAddingSize] = useState(false);
+
+  const CATEGORY_OPTIONS = [
+    "Men",
+    "Women",
+    "Basketball & Court",
+    "Running",
+    "Trail",
+    "Sneakers",
+  ];
+  const [useCustomCategory, setUseCustomCategory] = useState(
+    () => !!modal.draft.productType && !CATEGORY_OPTIONS.includes(modal.draft.productType),
+  );
+
+  // Resolve the *real* Media id for the featured image by matching URLs — the
+  // product's featuredImage.id is an Image id, not a Media id, and the two
+  // don't line up, which was silently breaking "replace" (it always missed
+  // the old media, so it just added a new one instead of swapping it out).
+  function resolveDefaultImage(p: any): { id?: string; url?: string } | null {
+    if (!p) return null;
+    const edges = p.media?.edges ?? [];
+    const featuredUrl = p.featuredImage?.url;
+    const match = featuredUrl
+      ? edges.find((e: any) => e.node?.image?.url === featuredUrl)
+      : null;
+    if (match) return { id: match.node.id, url: match.node.image.url };
+    // Fall back to the first edge that actually has an image (skip videos/3D models)
+    const firstImage = edges.find((e: any) => e.node?.image?.url);
+    if (firstImage) {
+      return { id: firstImage.node.id, url: firstImage.node.image.url };
+    }
+    return p.featuredImage
+      ? { id: p.featuredImage.id, url: p.featuredImage.url }
+      : null;
+  }
+
+  const [selectedImage, setSelectedImage] = useState<{ id?: string; url?: string } | null>(
+    () => resolveDefaultImage(product),
+  );
+
+  // The media id that was the product's storefront/list thumbnail when the
+  // modal opened. Used at Save time to detect "user just clicked a different
+  // existing thumbnail and hit Save" (no replace/upload involved) so we know
+  // to point the product's featured image at that selection.
+  const originalFeaturedId = useMemo(
+    () => resolveDefaultImage(product)?.id,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [product?.id],
+  );
+
+  // Image changes are staged locally and only sent to the server when the
+  // user clicks "Save Changes" — matching how every other field in this
+  // modal behaves, instead of firing off a network request the instant a
+  // file is picked.
+  const [pendingReplace, setPendingReplace] = useState<
+    { mediaId: string; file: File; previewUrl: string; wasFeatured: boolean } | null
+  >(null);
+  const [pendingAdds, setPendingAdds] = useState<
+    { key: string; file: File; previewUrl: string }[]
+  >([]);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+
+  async function handleDeleteImage(mediaId: string) {
+    if (!product) return;
+    const remainingCount = (product.media?.edges ?? []).length;
+    if (remainingCount <= 1) {
+      showToast("Product needs at least one image", false);
+      return;
+    }
+    setDeletingImageId(mediaId);
+    try {
+      const res = await fetch("/api/admin/delete-product-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, mediaId }),
+      });
+      const data = await safeJson(res);
+      if (!data.success) {
+        showToast("Remove failed: " + (data.error || "unknown error"), false);
+        return;
+      }
+      showToast("Image removed ✓");
+
+      // Don't leave a just-deleted image queued as a replace target or selected
+      if (pendingReplace?.mediaId === mediaId) {
+        URL.revokeObjectURL(pendingReplace.previewUrl);
+        setPendingReplace(null);
+      }
+      if (selectedImage?.id === mediaId) {
+        const remaining = (product.media?.edges ?? []).find(
+          (e: any) => e.node?.id !== mediaId,
+        );
+        setSelectedImage(
+          remaining
+            ? { id: remaining.node.id, url: remaining.node.image.url }
+            : null,
+        );
+      }
+      onSizeAdded(product.id);
+    } finally {
+      setDeletingImageId(null);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (pendingReplace) URL.revokeObjectURL(pendingReplace.previewUrl);
+      pendingAdds.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (product) {
+      setSelectedImage((prev) => {
+        // Keep selection if it still exists among current media, otherwise fall back to featured image
+        const stillExists = (product.media?.edges ?? []).some(
+          (e: any) => e.node?.id === prev?.id,
+        );
+        if (prev && stillExists) return prev;
+        return resolveDefaultImage(product);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id, product?.media, product?.featuredImage]);
+
+  useEffect(() => {
+    if (!product) return;
+    const ids = new Set((product.variants?.edges ?? []).map((e: any) => e.node.id));
+    if (draft.variantId && ids.has(draft.variantId)) return;
+    const fallback = product.variants?.edges?.[0]?.node?.id;
+    if (fallback) setDraft((p) => ({ ...p, variantId: fallback }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.variants]);
 
   function upd(key: keyof DraftProduct, value: any) {
     setDraft((p) => ({ ...p, [key]: value }));
@@ -307,36 +460,123 @@ function ProductModal({
     sizeRef.current?.focus();
   }
 
-  async function handleImageUpload(file: File) {
+  function queueReplaceImage(file: File) {
+    if (!product || !selectedImage?.id) {
+      showToast("Select an image to replace first", false);
+      return;
+    }
+    if (pendingReplace) URL.revokeObjectURL(pendingReplace.previewUrl);
+    const previewUrl = URL.createObjectURL(file);
+    // If the image being swapped out is the one currently used as the
+    // product's storefront/list thumbnail, flag it so the replacement
+    // explicitly takes over that spot too.
+    const wasFeatured = selectedImage.url === product.featuredImage?.url;
+    setPendingReplace({ mediaId: selectedImage.id, file, previewUrl, wasFeatured });
+  }
+
+  function undoReplaceImage() {
+    if (pendingReplace) URL.revokeObjectURL(pendingReplace.previewUrl);
+    setPendingReplace(null);
+  }
+
+  function queueAddImage(file: File) {
     if (!product) return;
-    setUploading(true);
-    try {
+    const previewUrl = URL.createObjectURL(file);
+    setPendingAdds((prev) => [
+      ...prev,
+      { key: `${Date.now()}-${Math.random()}`, file, previewUrl },
+    ]);
+  }
+
+  function removePendingAdd(key: string) {
+    setPendingAdds((prev) => {
+      const target = prev.find((p) => p.key === key);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.key !== key);
+    });
+  }
+
+  async function flushPendingImageChanges(productId: string) {
+    let failed = 0;
+    if (pendingReplace) {
       const fd = new FormData();
-      fd.append("file", file);
-      fd.append("productId", product.id);
-      if (draft.imageId) fd.append("oldMediaId", draft.imageId);
+      fd.append("file", pendingReplace.file);
+      fd.append("productId", productId);
+      fd.append("oldMediaId", pendingReplace.mediaId);
+      // Hint for the endpoint, in case it needs telling explicitly that the
+      // image being swapped out was the storefront/list thumbnail
+      if (pendingReplace.wasFeatured) fd.append("setAsFeatured", "true");
       const res = await fetch("/api/admin/upload-product-image", {
         method: "POST",
         body: fd,
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!data.success) {
-        showToast("Image upload failed: " + data.error, false);
-        return;
+        failed++;
+      } else if (pendingReplace.wasFeatured && data.media?.id) {
+        // Fallback: explicitly re-point the featured image if the upload
+        // endpoint didn't already handle it, so the products list thumbnail
+        // stays in sync with what was actually replaced.
+        try {
+          const fRes = await fetch("/api/admin/set-featured-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId, mediaId: data.media.id }),
+          });
+          await safeJson(fRes);
+        } catch {
+          // Non-fatal — the image itself still saved fine either way
+        }
       }
-      showToast("Image updated ✓");
-      onSaved();
-    } finally {
-      setUploading(false);
+      URL.revokeObjectURL(pendingReplace.previewUrl);
     }
+    for (const add of pendingAdds) {
+      const fd = new FormData();
+      fd.append("file", add.file);
+      fd.append("productId", productId);
+      const res = await fetch("/api/admin/upload-product-image", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await safeJson(res);
+      if (!data.success) failed++;
+      URL.revokeObjectURL(add.previewUrl);
+    }
+    setPendingReplace(null);
+    setPendingAdds([]);
+    return failed;
   }
-  
-  
+
+  // If the user simply clicked a different *existing* thumbnail (no file
+  // picked, nothing queued to replace it) and then hits Save, that
+  // selection should become the product's storefront/list image.
+  async function flushFeaturedSelection(productId: string) {
+    const replacingSelected = pendingReplace?.mediaId === selectedImage?.id;
+    if (
+      replacingSelected ||
+      !selectedImage?.id ||
+      selectedImage.id === originalFeaturedId
+    ) {
+      return 0;
+    }
+    const res = await fetch("/api/admin/set-featured-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, mediaId: selectedImage.id }),
+    });
+    const data = await safeJson(res);
+    return data.success ? 0 : 1;
+  }
 
   async function handleSave() {
     if (!draft.title.trim()) {
       showToast("Name is required", false);
       return;
+    }
+    // Safety net: if user typed a size but never clicked "Add", include it anyway
+    let effectiveSizes = draft.sizes;
+    if (!isEdit && draft.sizeInput.trim() && !draft.sizes.includes(draft.sizeInput.trim())) {
+      effectiveSizes = [...draft.sizes, draft.sizeInput.trim()];
     }
     if (!draft.price || isNaN(parseFloat(draft.price))) {
       showToast("Valid price is required", false);
@@ -358,22 +598,33 @@ function ProductModal({
             productType: draft.productType,
           }),
         });
-        const d1 = await r1.json();
+        const d1 = await safeJson(r1);
         if (!d1.success) {
           showToast("Update failed: " + d1.error, false);
           return;
         }
 
-        if (draft.variantId) {
+        // The variant id captured when the modal opened can go stale — e.g.
+        // adding the product's first size replaces its original "Default
+        // Title" variant with a new one, so draft.variantId now points at a
+        // variant that no longer exists. Only send the base-price update if
+        // that id is still present on the (always-fresh) product prop;
+        // otherwise per-size prices are already covered by the stock loop
+        // below, so it's safe to just skip this call.
+        const currentVariantIds = new Set(
+          (product.variants?.edges ?? []).map((e: any) => e.node.id),
+        );
+        if (draft.variantId && currentVariantIds.has(draft.variantId)) {
           const r2 = await fetch("/api/admin/update-variant-price", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               variantId: draft.variantId,
               price: draft.price,
+              productId: product.id,
             }),
           });
-          const d2 = await r2.json();
+          const d2 = await safeJson(r2);
           if (!d2.success) {
             showToast("Price update failed: " + d2.error, false);
             return;
@@ -396,7 +647,7 @@ function ProductModal({
                   quantity: delta,
                 }),
               });
-              const invData = await invRes.json();
+              const invData = await safeJson(invRes);
               if (invData.success) {
                 // Sync current so next save computes correct delta
                 updatedStockEdits[size] = { ...entry, current: newQty };
@@ -413,11 +664,30 @@ function ProductModal({
               body: JSON.stringify({
                 variantId: entry.variantId,
                 price: entry.price,
+                productId: product.id,
               }),
             });
           }
         }
-        showToast("Product saved ✓");
+
+        // Apply any staged image replace/add now that the user has hit Save
+        // (deletes already happen immediately when the × is clicked)
+        let imageFailures = 0;
+        if (pendingReplace || pendingAdds.length > 0) {
+          imageFailures += await flushPendingImageChanges(product.id);
+        }
+        // Apply a plain "selected a different existing image" change too
+        imageFailures += await flushFeaturedSelection(product.id);
+
+        if (imageFailures > 0) {
+          showToast(
+            `Product saved, but ${imageFailures} image change(s) failed`,
+            false,
+          );
+        } else {
+          showToast("Product saved ✓");
+        }
+        onSizeAdded(product.id);
       } else {
         const res = await fetch("/api/admin/create-product", {
           method: "POST",
@@ -433,7 +703,7 @@ function ProductModal({
             sizes: draft.sizes,
           }),
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!data.success) {
           showToast("Create failed: " + data.error, false);
           return;
@@ -450,7 +720,7 @@ function ProductModal({
               method: "POST",
               body: fd,
             });
-            const imgData = await imgRes.json();
+            const imgData = await safeJson(imgRes);
             if (!imgData.success) failedCount++;
           }
           if (failedCount > 0) {
@@ -586,6 +856,17 @@ function ProductModal({
           {isEdit && (
             <div>
               <FieldLabel>Product Images</FieldLabel>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 8,
+                  color: "rgba(240,244,248,0.25)",
+                  margin: "0 0 10px",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Click a thumbnail to make it the product's list image on Save · × removes an image right away, everything else applies when you Save
+              </p>
               <div
                 style={{
                   display: "flex",
@@ -594,35 +875,234 @@ function ProductModal({
                   marginBottom: 12,
                 }}
               >
-                {(product.media?.edges ?? []).map(
-                  (e: any, i: number) =>
-                    e.node?.image?.url && (
-                      <div
-                        key={i}
+                {(product.media?.edges ?? []).map((e: any, i: number) => {
+                  if (!e.node?.image?.url) return null;
+                  const isBeingReplaced = pendingReplace?.mediaId === e.node.id;
+                  const isDeleting = deletingImageId === e.node.id;
+                  const displayUrl = isBeingReplaced
+                    ? pendingReplace!.previewUrl
+                    : e.node.image.url;
+                  return (
+                    <div key={i} style={{ position: "relative", flexShrink: 0 }}>
+                      <button
+                        onClick={() =>
+                          !isDeleting &&
+                          setSelectedImage({
+                            id: e.node.id,
+                            url: e.node.image.url,
+                          })
+                        }
                         style={{
                           width: 64,
                           height: 64,
                           borderRadius: 8,
                           overflow: "hidden",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          flexShrink: 0,
+                          border:
+                            selectedImage?.id === e.node.id
+                              ? "2px solid rgba(232,168,48,0.75)"
+                              : isBeingReplaced
+                                ? "1.5px dashed rgba(232,168,48,0.5)"
+                                : "1px solid rgba(255,255,255,0.08)",
+                          padding: 0,
+                          cursor: isDeleting ? "default" : "pointer",
+                          background: "none",
+                          display: "block",
                         }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={e.node.image.url}
+                          src={displayUrl}
                           alt=""
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
+                            opacity: isDeleting ? 0.35 : isBeingReplaced ? 0.85 : 1,
                           }}
                         />
-                      </div>
-                    ),
-                )}
+                      </button>
+                      {isDeleting && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: 7,
+                              fontWeight: 800,
+                              letterSpacing: "0.06em",
+                              color: "#f87171",
+                              background: "rgba(0,0,0,0.6)",
+                              padding: "2px 5px",
+                              borderRadius: 4,
+                            }}
+                          >
+                            …
+                          </span>
+                        </div>
+                      )}
+                      {isBeingReplaced && !isDeleting && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            undoReplaceImage();
+                          }}
+                          title="Undo replace"
+                          style={{
+                            position: "absolute",
+                            top: 3,
+                            right: 3,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            background: "rgba(0,0,0,0.7)",
+                            border: "1px solid rgba(232,168,48,0.4)",
+                            color: "#e8a830",
+                            fontSize: 11,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            lineHeight: 1,
+                            padding: 0,
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                      {!isBeingReplaced && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            if (!isDeleting) handleDeleteImage(e.node.id);
+                          }}
+                          disabled={isDeleting}
+                          title="Remove this image — wrong product?"
+                          style={{
+                            position: "absolute",
+                            top: 3,
+                            right: 3,
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            background: "rgba(0,0,0,0.7)",
+                            border: "1px solid rgba(255,255,255,0.2)",
+                            color: isDeleting ? "rgba(248,113,113,0.4)" : "#f87171",
+                            fontSize: 11,
+                            cursor: isDeleting ? "not-allowed" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            lineHeight: 1,
+                            padding: 0,
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Newly picked images queued to be added on Save */}
+                {pendingAdds.map((add) => (
+                  <div
+                    key={add.key}
+                    style={{ position: "relative", flexShrink: 0 }}
+                  >
+                    <div
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        border: "1.5px dashed rgba(74,222,128,0.5)",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={add.previewUrl}
+                        alt=""
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          opacity: 0.85,
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => removePendingAdd(add.key)}
+                      title="Remove"
+                      style={{
+                        position: "absolute",
+                        top: 3,
+                        right: 3,
+                        width: 18,
+                        height: 18,
+                        borderRadius: 4,
+                        background: "rgba(0,0,0,0.7)",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        color: "#f87171",
+                        fontSize: 11,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add Image tile — queues a new image, uploaded on Save */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="add-image-input"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) queueAddImage(f);
+                    e.target.value = "";
+                  }}
+                />
+                <label htmlFor="add-image-input">
+                  <span
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 8,
+                      border: "1.5px dashed rgba(255,255,255,0.18)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      color: "rgba(232,168,48,0.6)",
+                      fontFamily: "monospace",
+                      gap: 2,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+                    <span style={{ fontSize: 7, letterSpacing: "0.05em" }}>
+                      Add
+                    </span>
+                  </span>
+                </label>
               </div>
-              <FieldLabel>Replace Featured Image</FieldLabel>
+              <FieldLabel>Replace Selected Image</FieldLabel>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <div
                   style={{
@@ -631,14 +1111,22 @@ function ProductModal({
                     borderRadius: 12,
                     flexShrink: 0,
                     background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    border: pendingReplace
+                      ? "1.5px dashed rgba(232,168,48,0.5)"
+                      : "1px solid rgba(255,255,255,0.08)",
                     overflow: "hidden",
                   }}
                 >
-                  {product?.featuredImage?.url && (
+                  {(pendingReplace?.mediaId === selectedImage?.id
+                    ? pendingReplace?.previewUrl
+                    : selectedImage?.url) && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={product.featuredImage.url}
+                      src={
+                        pendingReplace?.mediaId === selectedImage?.id
+                          ? pendingReplace!.previewUrl
+                          : selectedImage!.url
+                      }
                       alt=""
                       style={{
                         width: "100%",
@@ -656,14 +1144,15 @@ function ProductModal({
                     style={{ display: "none" }}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) handleImageUpload(f);
+                      if (f) queueReplaceImage(f);
+                      e.target.value = "";
                     }}
                   />
                   <label htmlFor="modal-img">
                     <span
                       style={{
                         display: "inline-block",
-                        cursor: uploading ? "not-allowed" : "pointer",
+                        cursor: "pointer",
                         background: "rgba(255,255,255,0.05)",
                         border: "1px solid rgba(255,255,255,0.1)",
                         borderRadius: 8,
@@ -673,24 +1162,50 @@ function ProductModal({
                         fontWeight: 800,
                         letterSpacing: "0.08em",
                         textTransform: "uppercase",
-                        color: uploading
-                          ? "rgba(240,244,248,0.3)"
-                          : "rgba(240,244,248,0.7)",
+                        color: "rgba(240,244,248,0.7)",
                       }}
                     >
-                      {uploading ? "Uploading…" : "Replace Image"}
+                      {pendingReplace?.mediaId === selectedImage?.id
+                        ? "Choose Different File"
+                        : "Replace Image"}
                     </span>
                   </label>
+                  {pendingReplace?.mediaId === selectedImage?.id && (
+                    <button
+                      onClick={undoReplaceImage}
+                      style={{
+                        marginLeft: 8,
+                        background: "none",
+                        border: "none",
+                        color: "rgba(240,244,248,0.35)",
+                        fontFamily: "monospace",
+                        fontSize: 9,
+                        letterSpacing: "0.06em",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Undo
+                    </button>
+                  )}
                   <p
                     style={{
                       fontFamily: "monospace",
                       fontSize: 8,
-                      color: "rgba(240,244,248,0.2)",
+                      color: pendingReplace?.mediaId === selectedImage?.id
+                        ? "#e8a830"
+                        : selectedImage?.id && selectedImage.id !== originalFeaturedId
+                          ? "#e8a830"
+                          : "rgba(240,244,248,0.2)",
                       margin: "6px 0 0",
                       letterSpacing: "0.06em",
                     }}
                   >
-                    JPG, PNG, WEBP · max ~4 MB
+                    {pendingReplace?.mediaId === selectedImage?.id
+                      ? "Pending — will apply when you Save Changes"
+                      : selectedImage?.id && selectedImage.id !== originalFeaturedId
+                        ? "Pending — this will become the list/storefront image on Save"
+                        : "JPG, PNG, WEBP · max ~4 MB"}
                   </p>
                 </div>
               </div>
@@ -763,45 +1278,94 @@ function ProductModal({
             </div>
             <div>
               <FieldLabel>Category</FieldLabel>
-              <select
-                value={draft.productType}
-                onChange={(e) => upd("productType", e.target.value)}
-                style={{
-                  width: "100%",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  padding: "9px 12px",
-                  color: "#f0f4f8",
-                  fontFamily: "Poppins, sans-serif",
-                  fontSize: 12,
-                  outline: "none",
-                  appearance: "none",
-                  cursor: "pointer",
-                }}
-                onFocus={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(232,168,48,0.4)")
-                }
-                onBlur={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")
-                }
-              >
-                <option value="" style={{ background: "#0f131c" }}>
-                  Select category…
-                </option>
-                {[
-                  "Men",
-                  "Women",
-                  "Basketball & Court",
-                  "Running",
-                  "Trail",
-                  "Sneakers",
-                ].map((cat) => (
-                  <option key={cat} value={cat} style={{ background: "#0f131c" }}>
-                    {cat}
+              {!useCustomCategory ? (
+                <select
+                  value={draft.productType}
+                  onChange={(e) => {
+                    if (e.target.value === "__other__") {
+                      setUseCustomCategory(true);
+                      upd("productType", "");
+                    } else {
+                      upd("productType", e.target.value);
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 8,
+                    padding: "9px 12px",
+                    color: "#f0f4f8",
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: 12,
+                    outline: "none",
+                    appearance: "none",
+                    cursor: "pointer",
+                  }}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = "rgba(232,168,48,0.4)")
+                  }
+                  onBlur={(e) =>
+                    (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")
+                  }
+                >
+                  <option value="" style={{ background: "#0f131c" }}>
+                    Select category…
                   </option>
-                ))}
-              </select>
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <option key={cat} value={cat} style={{ background: "#0f131c" }}>
+                      {cat}
+                    </option>
+                  ))}
+                  <option value="__other__" style={{ background: "#0f131c" }}>
+                    Other…
+                  </option>
+                </select>
+              ) : (
+                <div style={{ position: "relative" }}>
+                  <TextInput
+                    value={draft.productType}
+                    onChange={(v) => upd("productType", v)}
+                    placeholder="Type a category…"
+                  />
+                  <button
+                    onClick={() => {
+                      setUseCustomCategory(false);
+                      upd("productType", "");
+                    }}
+                    title="Choose from list instead"
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: 10,
+                      transform: "translateY(-50%)",
+                      width: 22,
+                      height: 22,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "none",
+                      border: "none",
+                      color: "rgba(240,244,248,0.4)",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1101,9 +1665,11 @@ function ProductModal({
                     }
                   />
                   <button
+                    disabled={saving || addingSize}
                     onClick={async () => {
                       const size = draft.sizeInput.trim();
-                      if (!size) return;
+                      if (!size || addingSize) return;
+                      setAddingSize(true);
                       const price =
                         (draft as any).newVariantPrice || draft.price;
                       const qty = parseInt((draft as any).newVariantQty || "0");
@@ -1117,31 +1683,50 @@ function ProductModal({
                           quantity: qty,
                         }),
                       });
-                      const data = await res.json();
+                      const data = await safeJson(res);
+                      console.log("add-variant response:", data);
                       if (!data.success) {
                         showToast("Failed: " + data.error, false);
                         return;
                       }
                       showToast("Size added ✓");
                       upd("sizeInput", "");
-                      onSaved();
+
+                      // Optimistically patch local state instead of waiting on Shopify's read lag
+                      setDraft((p) => ({
+                        ...p,
+                        sizes: [...p.sizes, size],
+                        stockEdits: {
+                          ...p.stockEdits,
+                          [size]: {
+                            inventoryItemId: data.variant?.inventoryItem?.id ?? "",
+                            current: qty,
+                            newQty: String(qty),
+                            price,
+                            variantId: data.variant?.id ?? "",
+                          },
+                        },
+                      }));
+
+                      onSizeAdded(product.id);
+                      setAddingSize(false);
                     }}
                     style={{
                       background: "rgba(232,168,48,0.1)",
                       border: "1px solid rgba(232,168,48,0.28)",
                       borderRadius: 8,
                       padding: "9px 16px",
-                      color: "#e8a830",
+                      color: addingSize ? "rgba(232,168,48,0.4)" : "#e8a830",
                       fontFamily: "monospace",
                       fontSize: 9,
                       fontWeight: 800,
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",
-                      cursor: "pointer",
+                      cursor: addingSize ? "not-allowed" : "pointer",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Add Size
+                    {addingSize ? "Adding…" : "Add Size"}
                   </button>
                 </div>
               </div>
@@ -1429,6 +2014,37 @@ export default function AdminProductsPage() {
     const data = await res.json();
     setProducts(data);
     setLoading(false);
+  }, []);
+
+  const refreshModalProduct = useCallback(async (productId: string) => {
+    const res = await fetch(`/api/admin/product?id=${encodeURIComponent(productId)}`, {
+      cache: "no-store",
+    });
+    const updated = await res.json();
+    console.log("refreshModalProduct received:", updated);
+    if (updated && updated.id) {
+      const freshDraft = draftFromProduct(updated);
+      setModal((m) => {
+        if (!m || m.mode !== "edit") return m;
+        const mergedStockEdits = { ...freshDraft.stockEdits };
+        for (const [size, entry] of Object.entries(m.draft.stockEdits)) {
+          if (entry.variantId && !mergedStockEdits[size]) {
+            mergedStockEdits[size] = entry;
+          }
+        }
+        const mergedSizes = Array.from(
+          new Set([...freshDraft.sizes, ...m.draft.sizes]),
+        );
+        return {
+          mode: "edit",
+          product: updated,
+          draft: { ...freshDraft, sizes: mergedSizes, stockEdits: mergedStockEdits },
+        };
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === updated.id ? updated : p)),
+      );
+    }
   }, []);
  
   async function handleDelete(productId: string) {
@@ -1764,7 +2380,6 @@ export default function AdminProductsPage() {
                         background: "rgba(248,113,113,0.08)",
                         border: "1px solid rgba(248,113,113,0.18)",
                         color: deletingId === product.id ? "rgba(248,113,113,0.3)" : "#f87171",
-                        fontSize: 13,
                         cursor: deletingId === product.id ? "not-allowed" : "pointer",
                         display: "flex",
                         alignItems: "center",
@@ -1772,7 +2387,22 @@ export default function AdminProductsPage() {
                         flexShrink: 0,
                       }}
                     >
-                      🗑
+                      <svg 
+                        width="12" 
+                        height="12" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -1786,6 +2416,7 @@ export default function AdminProductsPage() {
         modal={modal}
         onClose={() => setModal(null)}
         onSaved={() => fetchProducts(2000)}
+        onSizeAdded={refreshModalProduct}
         showToast={showToast}
       />
     )}

@@ -299,6 +299,78 @@ export async function getOrders(first = 20) {
   return data?.data?.orders?.edges?.map((e: any) => e.node) ?? [];
 }
 
+export async function getProductById(id: string) {
+  const data = await adminFetch(
+    `
+    query getProduct($id: ID!) {
+      product(id: $id) {
+        id
+        title
+        status
+        productType
+        descriptionHtml
+        totalInventory
+        featuredImage {
+          id
+          url
+          altText
+        }
+        vendor
+        collections(first: 5) {
+          edges {
+            node {
+              id
+              title
+            }
+          }
+        }
+        media(first: 10) {
+          edges {
+            node {
+              ... on MediaImage {
+                id
+                image {
+                  url
+                  altText
+                }
+              }
+            }
+          }
+        }
+        variants(first: 50) {
+          edges {
+            node {
+              id
+              title
+              price
+              inventoryQuantity
+              inventoryItem {
+                id
+              }
+              selectedOptions {
+                name
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  `,
+    { id },
+  );
+
+  if (data.errors) {
+    console.error(
+      "Shopify product query error:",
+      JSON.stringify(data.errors, null, 2),
+    );
+    return null;
+  }
+
+  return data?.data?.product ?? null;
+}
+
 export async function getProducts(first = 50) {
   const data = await adminFetch(
     `
@@ -410,20 +482,28 @@ export async function updateProductInfo(
 }
 
 // FIXED: updateVariantPrice — uses productVariantsBulkUpdate (correct 2024-01 API)
-export async function updateVariantPrice(variantId: string, price: string) {
-  const variantData = await adminFetch(
-    `
-    query getVariantProduct($id: ID!) {
-      productVariant(id: $id) {
-        product { id }
-      }
-    }
-  `,
-    { id: variantId },
-  );
+export async function updateVariantPrice(
+  variantId: string,
+  price: string,
+  productId?: string,
+) {
+  let resolvedProductId = productId;
 
-  const productId = variantData?.data?.productVariant?.product?.id;
-  if (!productId)
+  if (!resolvedProductId) {
+    const variantData = await adminFetch(
+      `
+      query getVariantProduct($id: ID!) {
+        productVariant(id: $id) {
+          product { id }
+        }
+      }
+    `,
+      { id: variantId },
+    );
+    resolvedProductId = variantData?.data?.productVariant?.product?.id;
+  }
+
+  if (!resolvedProductId)
     return { success: false, error: "Could not find product for variant" };
 
   const data = await adminFetch(
@@ -436,7 +516,7 @@ export async function updateVariantPrice(variantId: string, price: string) {
     }
   `,
     {
-      productId,
+      productId: resolvedProductId,
       variants: [{ id: variantId, price }],
     },
   );
@@ -556,6 +636,24 @@ export async function getPrimaryLocationId(): Promise<string | null> {
   `);
   return data?.data?.locations?.edges?.[0]?.node?.id ?? null;
 }
+
+export async function enableInventoryTracking(inventoryItemId: string) {
+  const data = await adminFetch(
+    `
+    mutation inventoryItemUpdate($id: ID!, $input: InventoryItemInput!) {
+      inventoryItemUpdate(id: $id, input: $input) {
+        inventoryItem { id tracked }
+        userErrors { field message }
+      }
+    }
+  `,
+    { id: inventoryItemId, input: { tracked: true } },
+  );
+  const errors = data?.data?.inventoryItemUpdate?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
+
 // NEW: activate inventory item at primary location before adjusting stock
 export async function connectInventoryToLocation(
   inventoryItemId: string,
@@ -663,6 +761,7 @@ export async function createProduct(input: {
     // Activate inventory at location
     if (defaultInventoryItemId && locationId) {
       await connectInventoryToLocation(defaultInventoryItemId);
+      await enableInventoryTracking(defaultInventoryItemId);
     }
 
     return { success: true, product };
@@ -701,6 +800,10 @@ export async function createProduct(input: {
   );
 
   const optionErrors = optionsData?.data?.productOptionsCreate?.userErrors;
+  console.log(
+    "createProduct productOptionsCreate response:",
+    JSON.stringify(optionsData, null, 2),
+  );
   if (optionErrors?.length) {
     return {
       success: true,
@@ -742,6 +845,7 @@ export async function createProduct(input: {
     for (const e of realVariants) {
       if (e.node.inventoryItem?.id) {
         await connectInventoryToLocation(e.node.inventoryItem.id);
+        await enableInventoryTracking(e.node.inventoryItem.id);
       }
     }
   }
@@ -814,7 +918,7 @@ export async function addVariantToProduct(
             id
             variants(first: 50) {
               edges {
-                node { id title }
+                node { id title inventoryItem { id } }
               }
             }
           }
@@ -834,12 +938,27 @@ export async function addVariantToProduct(
     );
 
     const optionErrors = optionsData?.data?.productOptionsCreate?.userErrors;
+    console.log(
+      "addVariantToProduct productOptionsCreate response:",
+      JSON.stringify(optionsData, null, 2),
+    );
     if (optionErrors?.length) {
       return { success: false, error: optionErrors[0].message };
     }
 
-    // Delete the old "Default Title" variant
-    if (hasDefaultTitle && defaultVariant) {
+    // Get the fresh variant list from productOptionsCreate response
+    const newVariants =
+      optionsData?.data?.productOptionsCreate?.product?.variants?.edges ?? [];
+    const realVariant = newVariants.find(
+      (e: any) => e.node.title !== "Default Title",
+    );
+
+    // Only delete the old default variant if Shopify actually created a
+    // separate new variant (i.e. the old default's ID is NOT the same as
+    // the new "real" variant's ID). If Shopify reused/renamed the default
+    // variant in place, deleting it would wipe out the only variant.
+    const defaultWasReused = realVariant?.node?.id === defaultVariant?.id;
+    if (hasDefaultTitle && defaultVariant && !defaultWasReused) {
       await adminFetch(
         `
         mutation productVariantsBulkDelete($productId: ID!, $variantsIds: [ID!]!) {
@@ -854,13 +973,6 @@ export async function addVariantToProduct(
         },
       );
     }
-
-    // Update price on the newly created variant
-    const newVariants =
-      optionsData?.data?.productOptionsCreate?.product?.variants?.edges ?? [];
-    const realVariant = newVariants.find(
-      (e: any) => e.node.title !== "Default Title",
-    );
 
     if (realVariant) {
       await adminFetch(
@@ -880,10 +992,18 @@ export async function addVariantToProduct(
 
       if (realVariant.node.inventoryItem?.id) {
         await connectInventoryToLocation(realVariant.node.inventoryItem.id);
+        await enableInventoryTracking(realVariant.node.inventoryItem.id);
+        if (quantity > 0) {
+          await updateVariantInventory(
+            realVariant.node.inventoryItem.id,
+            locationId,
+            quantity,
+          );
+        }
       }
     }
 
-    return { success: true };
+    return { success: true, variant: realVariant?.node };
   }
 
   // Size option exists — just add a new variant
@@ -918,6 +1038,14 @@ export async function addVariantToProduct(
 
   if (variant?.inventoryItem?.id) {
     await connectInventoryToLocation(variant.inventoryItem.id);
+    await enableInventoryTracking(variant.inventoryItem.id);
+    if (quantity > 0) {
+      await updateVariantInventory(
+        variant.inventoryItem.id,
+        locationId,
+        quantity,
+      );
+    }
   }
 
   return { success: true, variant };
