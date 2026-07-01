@@ -66,6 +66,21 @@ export default function AdminOrdersPage() {
   const [trackingOrder, setTrackingOrder] = useState<any | null>(null);
   const [trackingCarrier, setTrackingCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [localInProgress, setLocalInProgress] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("shoepreme_inprogress");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  // Sync to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("shoepreme_inprogress", JSON.stringify([...localInProgress]));
+    } catch {}
+  }, [localInProgress]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -92,7 +107,14 @@ export default function AdminOrdersPage() {
       data.success
         ? showToast("Order fulfilled ✓")
         : showToast("Fulfill failed: " + data.error, false);
-      if (data.success) await fetchOrders();
+      if (data.success) {
+        await fetchOrders();
+        setLocalInProgress((prev) => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      }
     } finally {
       setActionLoading(null);
     }
@@ -158,7 +180,14 @@ export default function AdminOrdersPage() {
       data.success
         ? showToast(`Order updated ✓`)
         : showToast("Failed: " + data.error, false);
-      if (data.success) await fetchOrders();
+      if (data.success) {
+        await fetchOrders();
+        setLocalInProgress((prev) => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      }
     } finally {
       setActionLoading(null);
     }
@@ -178,6 +207,32 @@ export default function AdminOrdersPage() {
         ? showToast("Order marked unfulfilled ✓")
         : showToast("Failed: " + data.error, false);
       if (data.success) await fetchOrders();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleReleaseHold(e: React.MouseEvent, orderId: string) {
+    e.stopPropagation();
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/release-hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Hold released ✓");
+        setLocalInProgress((prev) => {
+          const next = new Set(prev);
+          next.add(orderId);
+          return next;
+        });
+        await fetchOrders();
+      } else {
+        showToast("Release failed: " + data.error, false);
+      }
     } finally {
       setActionLoading(null);
     }
@@ -235,6 +290,57 @@ export default function AdminOrdersPage() {
       o.displayFulfillmentStatus === "UNFULFILLED" ||
       o.displayFulfillmentStatus === "PARTIALLY_FULFILLED",
   );
+  function handlePrintPackingSlip(order: any) {
+    const addressLines = formatAddress(order.shippingAddress) || [];
+    const items = order.lineItems?.edges?.map((e: any) => e.node) ?? [];
+    const win = window.open("", "_blank", "width=800,height=900");
+    if (!win) return;
+
+    const rows = items
+      .map(
+        (item: any) => `
+          <tr>
+            <td style="padding:8px 0;">${item.title}</td>
+            <td style="padding:8px 0;text-align:center;">${item.quantity}</td>
+          </tr>`,
+      )
+      .join("");
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Packing Slip - ${order.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111; padding: 40px; }
+            h1 { font-size: 20px; margin-bottom: 4px; }
+            .muted { color: #666; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+            th { text-align: left; border-bottom: 1px solid #ccc; padding: 8px 0; font-size: 12px; text-transform: uppercase; }
+            td { border-bottom: 1px solid #eee; font-size: 13px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Shoepreme</h1>
+          <div class="muted">Your Store Address, City, Province, ZIP</div>
+          <div class="muted">your@email.com · yourstore.com</div>
+          <hr style="margin:20px 0;" />
+          <p><strong>Order:</strong> ${order.name}<br/>
+          <strong>Date:</strong> ${formatDate(order.createdAt)}</p>
+          <p><strong>Ship To:</strong><br/>
+          ${order.customer?.displayName ?? "Guest"}<br/>
+          ${addressLines.join("<br/>")}</p>
+          <table>
+            <thead><tr><th>Item</th><th style="text-align:center;">Qty</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="footer">Thank you for shopping with us!</div>
+          <script>window.onload = () => window.print();</script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  }
   const pending = orders.filter((o) => o.displayFinancialStatus === "PENDING");
   const totalValue = orders.reduce(
     (s, o) => s + parseFloat(o.totalPriceSet.shopMoney.amount),
@@ -453,6 +559,7 @@ export default function AdminOrdersPage() {
                 !isFulfilled &&
                 order.displayFinancialStatus !== "PAID";
               const onHold = order.displayFulfillmentStatus === "ON_HOLD";
+              const inProgress = order.displayFulfillmentStatus === "IN_PROGRESS" || localInProgress.has(order.id);
               const addressLines = formatAddress(order.shippingAddress);
               const items =
                 order.lineItems?.edges?.map((e: any) => e.node) ?? [];
@@ -585,13 +692,11 @@ export default function AdminOrdersPage() {
 
                       {!isVoided && order.displayFinancialStatus === "PAID" && (
                         <>
+                          {/* ── Step 4: FULFILLED ── */}
                           {isFulfilled ? (
                             <>
                               <ActionButton
-                                onClick={(e: any) => {
-                                  e.stopPropagation();
-                                  setTrackingOrder(order);
-                                }}
+                                onClick={(e: any) => { e.stopPropagation(); setTrackingOrder(order); }}
                                 disabled={isBusy}
                                 variant="ghost"
                                 small
@@ -607,108 +712,217 @@ export default function AdminOrdersPage() {
                                 {isBusy ? "…" : "Delivered"}
                               </ActionButton>
                             </>
-                          ) : (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleFulfill(e, order.id); }}
-                              disabled={isBusy}
-                              style={{
-                                padding: "5px 10px",
-                                borderRadius: "7px 0 0 7px",
-                                background: "rgba(74,222,128,0.1)",
-                                border: "1px solid rgba(74,222,128,0.25)",
-                                borderRight: "none",
-                                color: "#4ade80",
-                                fontFamily: "monospace",
-                                fontSize: 9,
-                                fontWeight: 700,
-                                letterSpacing: "0.08em",
-                                cursor: isBusy ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {isBusy ? "…" : "Fulfill"}
-                            </button>
-                          )}
 
-                          <div style={{ position: "relative", display: "flex" }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenDropdown(openDropdown === order.id ? null : order.id);
-                              }}
-                              disabled={isBusy}
-                              style={{
-                                padding: "5px 9px",
-                                borderRadius: isFulfilled ? 7 : "0 7px 7px 0",
-                                background: "rgba(74,222,128,0.1)",
-                                border: "1px solid rgba(74,222,128,0.25)",
-                                color: "#4ade80",
-                                fontSize: 9,
-                                cursor: isBusy ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              ▾
-                            </button>
-                            {openDropdown === order.id && (
-                              <div
+                          ) : onHold ? (
+                            /* ── Step 3b: ON HOLD → Release or Fulfill ── */
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleReleaseHold(e, order.id); }}
+                                disabled={isBusy}
                                 style={{
-                                  position: "absolute",
-                                  top: "calc(100% + 6px)",
-                                  right: 0,
-                                  background: "#0f131c",
-                                  border: "1px solid rgba(255,255,255,0.1)",
-                                  borderRadius: 10,
-                                  overflow: "hidden",
-                                  zIndex: 100,
-                                  minWidth: 150,
-                                  boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                                  padding: "5px 10px",
+                                  borderRadius: 7,
+                                  background: "rgba(232,168,48,0.08)",
+                                  border: "1px solid rgba(232,168,48,0.3)",
+                                  color: "#e8a830",
+                                  fontFamily: "monospace",
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.08em",
+                                  cursor: isBusy ? "not-allowed" : "pointer",
                                 }}
                               >
-                                {[
-                                  ...(onHold
-                                    ? [{ label: "In Progress", action: "release" as const, color: "#e8a830" }]
-                                    : [
-                                        { label: "In Progress", action: "in_progress" as const, color: "#e8a830" },
-                                        { label: "On Hold", action: "on_hold" as const, color: "#f87171" },
-                                      ]),
-                                  isFulfilled
-                                    ? { label: "Unfulfilled", action: "unfulfill" as const, color: "#9ca3af" }
-                                    : { label: "Fulfilled", action: "fulfill" as const, color: "#4ade80" },
-                                ].map((opt, i, arr) => (
-                                  <button
-                                    key={opt.label}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenDropdown(null);
-                                      if (opt.action === "release") handleSetStatus(e, order.id, "RELEASE_HOLD");
-                                      else if (opt.action === "in_progress") handleSetStatus(e, order.id, "IN_PROGRESS");
-                                      else if (opt.action === "on_hold") handleSetStatus(e, order.id, "ON_HOLD");
-                                      else if (opt.action === "fulfill") handleFulfill(e, order.id);
-                                      else if (opt.action === "unfulfill") handleUnfulfill(e, order.id);
-                                    }}
-                                    style={{
-                                      display: "block",
-                                      width: "100%",
-                                      padding: "10px 14px",
-                                      background: "transparent",
-                                      border: "none",
-                                      borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                                      color: opt.color,
-                                      fontFamily: "monospace",
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                      letterSpacing: "0.08em",
-                                      cursor: "pointer",
-                                      textAlign: "left",
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
+                                {isBusy ? "…" : "Release"}
+                              </button>
+                              <div style={{ position: "relative", display: "flex" }}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === order.id ? null : order.id); }}
+                                  disabled={isBusy}
+                                  style={{
+                                    padding: "5px 9px",
+                                    borderRadius: 7,
+                                    background: "rgba(232,168,48,0.1)",
+                                    border: "1px solid rgba(232,168,48,0.25)",
+                                    color: "#e8a830",
+                                    fontSize: 9,
+                                    cursor: isBusy ? "not-allowed" : "pointer",
+                                  }}
+                                >
+                                  ▾
+                                </button>
+                                {openDropdown === order.id && (
+                                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#0f131c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", zIndex: 100, minWidth: 150, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
+                                    {[
+                                      { label: "Fulfill", action: "fulfill" as const, color: "#4ade80" },
+                                      { label: "In Progress", action: "release" as const, color: "#e8a830" },
+                                    ].map((opt, i, arr) => (
+                                      <button
+                                        key={opt.label}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdown(null);
+                                          if (opt.action === "release") handleReleaseHold(e, order.id);
+                                          else if (opt.action === "fulfill") handleFulfill(e, order.id);
+                                        }}
+                                        style={{ display: "block", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", color: opt.color, fontFamily: "monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textAlign: "left" }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            </>
+
+                          ) : inProgress ? (
+                            /* ── Step 3: IN PROGRESS → On Hold | Fulfill ── */
+                            <>
+                              <ActionButton
+                                onClick={(e: any) => { e.stopPropagation(); handleSetStatus(e, order.id, "ON_HOLD"); }}
+                                disabled={isBusy}
+                                variant="red"
+                                small
+                              >
+                                {isBusy ? "…" : "On Hold"}
+                              </ActionButton>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleFulfill(e, order.id); }}
+                                disabled={isBusy}
+                                style={{
+                                  padding: "5px 10px",
+                                  borderRadius: "7px 0 0 7px",
+                                  background: "rgba(74,222,128,0.1)",
+                                  border: "1px solid rgba(74,222,128,0.25)",
+                                  borderRight: "none",
+                                  color: "#4ade80",
+                                  fontFamily: "monospace",
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.08em",
+                                  cursor: isBusy ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                {isBusy ? "…" : "Fulfill"}
+                              </button>
+                              <div style={{ position: "relative", display: "flex" }}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === order.id ? null : order.id); }}
+                                  disabled={isBusy}
+                                  style={{
+                                    padding: "5px 9px",
+                                    borderRadius: "0 7px 7px 0",
+                                    background: "rgba(74,222,128,0.1)",
+                                    border: "1px solid rgba(74,222,128,0.25)",
+                                    color: "#4ade80",
+                                    fontSize: 9,
+                                    cursor: isBusy ? "not-allowed" : "pointer",
+                                  }}
+                                >
+                                  ▾
+                                </button>
+                                {openDropdown === order.id && (
+                                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#0f131c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", zIndex: 100, minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
+                                    {[
+                                      { label: "On Hold", action: "on_hold" as const, color: "#f87171" },
+                                      { label: "Fulfill", action: "fulfill" as const, color: "#4ade80" },
+                                      { label: "Print Packing Slip", action: "print_slip" as const, color: "#e8a830" },
+                                    ].map((opt, i, arr) => (
+                                      <button
+                                        key={opt.label}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdown(null);
+                                          if (opt.action === "on_hold") handleSetStatus(e, order.id, "ON_HOLD");
+                                          else if (opt.action === "fulfill") handleFulfill(e, order.id);
+                                          else if (opt.action === "print_slip") handlePrintPackingSlip(order);
+                                        }}
+                                        style={{ display: "block", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", color: opt.color, fontFamily: "monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textAlign: "left" }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+
+                          ) : (
+                            /* ── PAID → [🧾] + split [In Progress | ▾] ── */
+                            <>
+                              {/* In Progress — sets local UI state + prints receipt */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLocalInProgress((prev) => {
+                                    const next = new Set(prev);
+                                    next.add(order.id);
+                                    return next;
+                                  });
+                                  handlePrintPackingSlip(order);
+                                }}
+                                disabled={isBusy}
+                                style={{
+                                  padding: "5px 10px",
+                                  borderRadius: "7px 0 0 7px",
+                                  background: "rgba(232,168,48,0.08)",
+                                  border: "1px solid rgba(232,168,48,0.3)",
+                                  borderRight: "none",
+                                  color: "#e8a830",
+                                  fontFamily: "monospace",
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.08em",
+                                  cursor: isBusy ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                {isBusy ? "…" : "In Progress"}
+                              </button>
+                              <div style={{ position: "relative", display: "flex" }}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === order.id ? null : order.id); }}
+                                  disabled={isBusy}
+                                  style={{
+                                    padding: "5px 9px",
+                                    borderRadius: "0 7px 7px 0",
+                                    background: "rgba(232,168,48,0.08)",
+                                    border: "1px solid rgba(232,168,48,0.3)",
+                                    color: "#e8a830",
+                                    fontSize: 9,
+                                    cursor: isBusy ? "not-allowed" : "pointer",
+                                  }}
+                                >
+                                  ▾
+                                </button>
+                                {openDropdown === order.id && (
+                                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#0f131c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", zIndex: 100, minWidth: 150, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
+                                    {[
+                                      { label: "On Hold", action: "on_hold" as const, color: "#f87171" },
+                                      { label: "Fulfill", action: "fulfill" as const, color: "#4ade80" },
+                                    ].map((opt, i, arr) => (
+                                      <button
+                                        key={opt.label}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdown(null);
+                                          if (opt.action === "on_hold") handleSetStatus(e, order.id, "ON_HOLD");
+                                          else if (opt.action === "fulfill") handleFulfill(e, order.id);
+                                        }}
+                                        style={{ display: "block", width: "100%", padding: "10px 14px", background: "transparent", border: "none", borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", color: opt.color, fontFamily: "monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", textAlign: "left" }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </>
                       )}
 
@@ -857,10 +1071,10 @@ export default function AdminOrdersPage() {
                                   flexShrink: 0,
                                 }}
                               >
-                                {item.variant?.image?.url && (
+                                {(item.variant?.image?.url || item.variant?.product?.featuredImage?.url) && (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
-                                    src={item.variant.image.url}
+                                    src={item.variant?.image?.url || item.variant?.product?.featuredImage?.url}
                                     alt={item.title}
                                     style={{
                                       width: "100%",

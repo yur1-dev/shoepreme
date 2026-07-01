@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setFulfillmentOrderStatus } from "@/lib/shopify-admin";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const { orderId, status } = await req.json();

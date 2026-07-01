@@ -8,6 +8,7 @@ async function adminFetch(query: string, variables?: Record<string, unknown>) {
       "X-Shopify-Access-Token": process.env.SHOPIFY_ADMIN_TOKEN!,
     },
     body: JSON.stringify({ query, variables }),
+    cache: "no-store",
   });
   return res.json();
 }
@@ -256,6 +257,12 @@ export async function getOrders(first = 20) {
                     image {
                       url
                       altText
+                    }
+                    product {
+                      featuredImage {
+                        url
+                        altText
+                      }
                     }
                   }
                 }
@@ -1190,4 +1197,42 @@ export async function getCustomers(first = 100) {
   }
 
   return data?.data?.customers?.edges?.map((e: any) => e.node) ?? [];
+}
+export async function releaseFulfillmentHold(orderId: string) {
+  const foData = await adminFetch(
+    `
+    query getFulfillmentOrders($id: ID!) {
+      order(id: $id) {
+        fulfillmentOrders(first: 5) {
+          edges { node { id status } }
+        }
+      }
+    }
+  `,
+    { id: orderId },
+  );
+
+  const fulfillmentOrders = foData?.data?.order?.fulfillmentOrders?.edges ?? [];
+  const onHoldFO = fulfillmentOrders.find((e: any) => e.node.status === "ON_HOLD");
+
+  if (!onHoldFO) {
+    return { success: false, error: "No fulfillment order with ON_HOLD status found" };
+  }
+
+  const data = await adminFetch(
+    `
+    mutation fulfillmentOrderReleaseHold($id: ID!) {
+      fulfillmentOrderReleaseHold(id: $id) {
+        fulfillmentOrder { id status }
+        userErrors { field message }
+      }
+    }
+  `,
+    { id: onHoldFO.node.id },
+  );
+
+  const errors = data?.data?.fulfillmentOrderReleaseHold?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+
+  return { success: true };
 }
