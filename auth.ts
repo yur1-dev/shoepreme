@@ -144,7 +144,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.shopifyTokenExpiresAt =
               Math.floor(Date.now() / 1000) + renewed.expires_in;
           } else {
-            token.shopifyAccessToken = undefined; // force re-login
+            // Token refresh failed — clear both tokens to force fresh login
+            token.shopifyAccessToken = undefined;
+            token.shopifyRefreshToken = undefined;
+            token.shopifyTokenExpiresAt = undefined;
           }
         }
       }

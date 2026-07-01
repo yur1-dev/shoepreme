@@ -66,6 +66,21 @@ export default function AdminOrdersPage() {
   const [trackingOrder, setTrackingOrder] = useState<any | null>(null);
   const [trackingCarrier, setTrackingCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [localInProgress, setLocalInProgress] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("shoepreme_inprogress");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  // Sync to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("shoepreme_inprogress", JSON.stringify([...localInProgress]));
+    } catch {}
+  }, [localInProgress]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -92,7 +107,14 @@ export default function AdminOrdersPage() {
       data.success
         ? showToast("Order fulfilled ✓")
         : showToast("Fulfill failed: " + data.error, false);
-      if (data.success) await fetchOrders();
+      if (data.success) {
+        await fetchOrders();
+        setLocalInProgress((prev) => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      }
     } finally {
       setActionLoading(null);
     }
@@ -158,7 +180,14 @@ export default function AdminOrdersPage() {
       data.success
         ? showToast(`Order updated ✓`)
         : showToast("Failed: " + data.error, false);
-      if (data.success) await fetchOrders();
+      if (data.success) {
+        await fetchOrders();
+        setLocalInProgress((prev) => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      }
     } finally {
       setActionLoading(null);
     }
@@ -178,6 +207,32 @@ export default function AdminOrdersPage() {
         ? showToast("Order marked unfulfilled ✓")
         : showToast("Failed: " + data.error, false);
       if (data.success) await fetchOrders();
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleReleaseHold(e: React.MouseEvent, orderId: string) {
+    e.stopPropagation();
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/release-hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Hold released ✓");
+        setLocalInProgress((prev) => {
+          const next = new Set(prev);
+          next.add(orderId);
+          return next;
+        });
+        await fetchOrders();
+      } else {
+        showToast("Release failed: " + data.error, false);
+      }
     } finally {
       setActionLoading(null);
     }
@@ -235,6 +290,57 @@ export default function AdminOrdersPage() {
       o.displayFulfillmentStatus === "UNFULFILLED" ||
       o.displayFulfillmentStatus === "PARTIALLY_FULFILLED",
   );
+  function handlePrintPackingSlip(order: any) {
+    const addressLines = formatAddress(order.shippingAddress) || [];
+    const items = order.lineItems?.edges?.map((e: any) => e.node) ?? [];
+    const win = window.open("", "_blank", "width=800,height=900");
+    if (!win) return;
+
+    const rows = items
+      .map(
+        (item: any) => `
+          <tr>
+            <td style="padding:8px 0;">${item.title}</td>
+            <td style="padding:8px 0;text-align:center;">${item.quantity}</td>
+          </tr>`,
+      )
+      .join("");
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Packing Slip - ${order.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111; padding: 40px; }
+            h1 { font-size: 20px; margin-bottom: 4px; }
+            .muted { color: #666; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+            th { text-align: left; border-bottom: 1px solid #ccc; padding: 8px 0; font-size: 12px; text-transform: uppercase; }
+            td { border-bottom: 1px solid #eee; font-size: 13px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Shoepreme</h1>
+          <div class="muted">Your Store Address, City, Province, ZIP</div>
+          <div class="muted">your@email.com · yourstore.com</div>
+          <hr style="margin:20px 0;" />
+          <p><strong>Order:</strong> ${order.name}<br/>
+          <strong>Date:</strong> ${formatDate(order.createdAt)}</p>
+          <p><strong>Ship To:</strong><br/>
+          ${order.customer?.displayName ?? "Guest"}<br/>
+          ${addressLines.join("<br/>")}</p>
+          <table>
+            <thead><tr><th>Item</th><th style="text-align:center;">Qty</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="footer">Thank you for shopping with us!</div>
+          <script>window.onload = () => window.print();</script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  }
   const pending = orders.filter((o) => o.displayFinancialStatus === "PENDING");
   const totalValue = orders.reduce(
     (s, o) => s + parseFloat(o.totalPriceSet.shopMoney.amount),
@@ -454,6 +560,7 @@ export default function AdminOrdersPage() {
                 !isFulfilled &&
                 order.displayFinancialStatus !== "PAID";
               const onHold = order.displayFulfillmentStatus === "ON_HOLD";
+              const inProgress = order.displayFulfillmentStatus === "IN_PROGRESS" || localInProgress.has(order.id);
               const addressLines = formatAddress(order.shippingAddress);
               const items =
                 order.lineItems?.edges?.map((e: any) => e.node) ?? [];
@@ -590,13 +697,11 @@ export default function AdminOrdersPage() {
 
                       {!isVoided && order.displayFinancialStatus === "PAID" && (
                         <>
+                          {/* ── Step 4: FULFILLED ── */}
                           {isFulfilled ? (
                             <>
                               <ActionButton
-                                onClick={(e: any) => {
-                                  e.stopPropagation();
-                                  setTrackingOrder(order);
-                                }}
+                                onClick={(e: any) => { e.stopPropagation(); setTrackingOrder(order); }}
                                 disabled={isBusy}
                                 variant="ghost"
                                 small
@@ -915,10 +1020,10 @@ export default function AdminOrdersPage() {
                                   flexShrink: 0,
                                 }}
                               >
-                                {item.variant?.image?.url && (
+                                {(item.variant?.image?.url || item.variant?.product?.featuredImage?.url) && (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
-                                    src={item.variant.image.url}
+                                    src={item.variant?.image?.url || item.variant?.product?.featuredImage?.url}
                                     alt={item.title}
                                     style={{
                                       width: "100%",

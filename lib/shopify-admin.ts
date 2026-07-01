@@ -8,6 +8,7 @@ async function adminFetch(query: string, variables?: Record<string, unknown>) {
       "X-Shopify-Access-Token": process.env.SHOPIFY_ADMIN_TOKEN!,
     },
     body: JSON.stringify({ query, variables }),
+    cache: "no-store",
   });
   return res.json();
 }
@@ -269,6 +270,12 @@ export async function getOrders(first = 20) {
                     image {
                       url
                       altText
+                    }
+                    product {
+                      featuredImage {
+                        url
+                        altText
+                      }
                     }
                   }
                 }
