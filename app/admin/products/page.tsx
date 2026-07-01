@@ -312,6 +312,18 @@ function ProductModal({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingSize, setAddingSize] = useState(false);
 
+  const CATEGORY_OPTIONS = [
+    "Men",
+    "Women",
+    "Basketball & Court",
+    "Running",
+    "Trail",
+    "Sneakers",
+  ];
+  const [useCustomCategory, setUseCustomCategory] = useState(
+    () => !!modal.draft.productType && !CATEGORY_OPTIONS.includes(modal.draft.productType),
+  );
+
   // Resolve the *real* Media id for the featured image by matching URLs — the
   // product's featuredImage.id is an Image id, not a Media id, and the two
   // don't line up, which was silently breaking "replace" (it always missed
@@ -1266,45 +1278,94 @@ function ProductModal({
             </div>
             <div>
               <FieldLabel>Category</FieldLabel>
-              <select
-                value={draft.productType}
-                onChange={(e) => upd("productType", e.target.value)}
-                style={{
-                  width: "100%",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  padding: "9px 12px",
-                  color: "#f0f4f8",
-                  fontFamily: "Poppins, sans-serif",
-                  fontSize: 12,
-                  outline: "none",
-                  appearance: "none",
-                  cursor: "pointer",
-                }}
-                onFocus={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(232,168,48,0.4)")
-                }
-                onBlur={(e) =>
-                  (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")
-                }
-              >
-                <option value="" style={{ background: "#0f131c" }}>
-                  Select category…
-                </option>
-                {[
-                  "Men",
-                  "Women",
-                  "Basketball & Court",
-                  "Running",
-                  "Trail",
-                  "Sneakers",
-                ].map((cat) => (
-                  <option key={cat} value={cat} style={{ background: "#0f131c" }}>
-                    {cat}
+              {!useCustomCategory ? (
+                <select
+                  value={draft.productType}
+                  onChange={(e) => {
+                    if (e.target.value === "__other__") {
+                      setUseCustomCategory(true);
+                      upd("productType", "");
+                    } else {
+                      upd("productType", e.target.value);
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 8,
+                    padding: "9px 12px",
+                    color: "#f0f4f8",
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: 12,
+                    outline: "none",
+                    appearance: "none",
+                    cursor: "pointer",
+                  }}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = "rgba(232,168,48,0.4)")
+                  }
+                  onBlur={(e) =>
+                    (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")
+                  }
+                >
+                  <option value="" style={{ background: "#0f131c" }}>
+                    Select category…
                   </option>
-                ))}
-              </select>
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <option key={cat} value={cat} style={{ background: "#0f131c" }}>
+                      {cat}
+                    </option>
+                  ))}
+                  <option value="__other__" style={{ background: "#0f131c" }}>
+                    Other…
+                  </option>
+                </select>
+              ) : (
+                <div style={{ position: "relative" }}>
+                  <TextInput
+                    value={draft.productType}
+                    onChange={(v) => upd("productType", v)}
+                    placeholder="Type a category…"
+                  />
+                  <button
+                    onClick={() => {
+                      setUseCustomCategory(false);
+                      upd("productType", "");
+                    }}
+                    title="Choose from list instead"
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: 10,
+                      transform: "translateY(-50%)",
+                      width: 22,
+                      height: 22,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "none",
+                      border: "none",
+                      color: "rgba(240,244,248,0.4)",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
