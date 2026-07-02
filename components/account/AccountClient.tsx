@@ -10,7 +10,12 @@ const SHOP_LOCATION = {
   address: "Conel - Olympog Rd, General Santos City, South Cotabato",
 };
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Section = "orders" | "addresses" | "recently-viewed" | "profile";
+type Section =
+  | "orders"
+  | "addresses"
+  | "recently-viewed"
+  | "profile"
+  | "pre-orders";
 
 interface CustomerData {
   displayName: string;
@@ -189,6 +194,25 @@ const NAV_ITEMS: { key: Section; label: string; icon: React.ReactNode }[] = [
       >
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
         <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  {
+    key: "pre-orders",
+    label: "Pre-orders",
+    icon: (
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
   },
@@ -3244,6 +3268,421 @@ function AddressesSection({ customerId }: { customerId: string }) {
   );
 }
 
+// ─── Pre-orders Section ───────────────────────────────────────────────────────
+interface DraftOrder {
+  id: string;
+  name: string;
+  createdAt: string;
+  status: string;
+  invoiceUrl?: string;
+  lineItems: {
+    title: string;
+    quantity: number;
+    variantTitle?: string;
+    originalUnitPrice: string;
+  }[];
+  totalPrice: string;
+}
+
+function PreOrdersSection({ email }: { email?: string }) {
+  const [drafts, setDrafts] = useState<DraftOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!email) {
+      setLoading(false);
+      return;
+    }
+    fetch(`/api/account-api/pre-orders?email=${encodeURIComponent(email)}`)
+      .then((r) => r.json())
+      .then((d) => setDrafts(d.draftOrders ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [email]);
+
+  const statusColor = (s: string) =>
+    s === "OPEN"
+      ? "#e8a830"
+      : s === "COMPLETED"
+        ? "#4ade80"
+        : "rgba(245,247,249,0.35)";
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          background: "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: "16px",
+          padding: "56px 24px",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "rgba(245,247,249,0.3)",
+            letterSpacing: "0.08em",
+            margin: 0,
+          }}
+        >
+          Loading pre-orders…
+        </p>
+      </div>
+    );
+  }
+
+  if (drafts.length === 0) {
+    return (
+      <div
+        style={{
+          background: "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: "16px",
+          padding: "56px 24px",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            fontFamily: "Bebas Neue, sans-serif",
+            fontSize: "1.6rem",
+            letterSpacing: "0.08em",
+            color: "rgba(245,247,249,0.15)",
+            margin: "0 0 8px",
+          }}
+        >
+          No pre-orders yet.
+        </p>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "rgba(245,247,249,0.25)",
+            letterSpacing: "0.08em",
+            margin: 0,
+          }}
+        >
+          Items you reserve will appear here pending stock confirmation.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      {/* Info banner */}
+      <div
+        style={{
+          background: "rgba(232,168,48,0.05)",
+          border: "1px solid rgba(232,168,48,0.15)",
+          borderRadius: "12px",
+          padding: "14px 18px",
+          display: "flex",
+          gap: "10px",
+          alignItems: "flex-start",
+        }}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#e8a830"
+          strokeWidth="2"
+          style={{ marginTop: "1px", flexShrink: 0 }}
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v4M12 16h.01" />
+        </svg>
+        <p
+          style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            color: "rgba(245,247,249,0.4)",
+            letterSpacing: "0.04em",
+            margin: 0,
+            lineHeight: 1.6,
+          }}
+        >
+          These are items you've reserved. No payment has been charged yet —
+          we'll send you a payment link once stock is confirmed.
+        </p>
+      </div>
+
+      {drafts.map((draft) => (
+        <div
+          key={draft.id}
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "14px",
+            padding: "18px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+          }}
+        >
+          {/* Header row */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,247,249,0.25)",
+                  margin: "0 0 4px",
+                }}
+              >
+                Reserved
+              </p>
+              <p
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.1rem",
+                  letterSpacing: "0.06em",
+                  color: "#f5f7f9",
+                  margin: 0,
+                }}
+              >
+                {draft.name}
+              </p>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "9px",
+                  color: "rgba(245,247,249,0.3)",
+                  letterSpacing: "0.04em",
+                  margin: "4px 0 0",
+                }}
+              >
+                {formatDate(draft.createdAt, true)}
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  fontFamily: "monospace",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: statusColor(draft.status),
+                  background: `${statusColor(draft.status)}18`,
+                  border: `1px solid ${statusColor(draft.status)}40`,
+                  borderRadius: "6px",
+                  padding: "3px 8px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span
+                  style={{
+                    width: "5px",
+                    height: "5px",
+                    borderRadius: "50%",
+                    background: statusColor(draft.status),
+                    flexShrink: 0,
+                  }}
+                />
+                {draft.status === "OPEN"
+                  ? "Awaiting Confirmation"
+                  : draft.status}
+              </span>
+            </div>
+          </div>
+
+          {/* Line items */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {draft.lineItems.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      background: "rgba(232,168,48,0.08)",
+                      border: "1px solid rgba(232,168,48,0.15)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="rgba(232,168,48,0.5)"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontFamily: "Poppins, sans-serif",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#f5f7f9",
+                        margin: "0 0 2px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.title}
+                    </p>
+                    {item.variantTitle &&
+                      item.variantTitle !== "Default Title" && (
+                        <p
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "9px",
+                            color: "rgba(245,247,249,0.35)",
+                            margin: 0,
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {item.variantTitle} · Qty: {item.quantity}
+                        </p>
+                      )}
+                  </div>
+                </div>
+                <p
+                  style={{
+                    fontFamily: "Bebas Neue, sans-serif",
+                    fontSize: "1rem",
+                    letterSpacing: "0.06em",
+                    color: "#e8a830",
+                    margin: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  ₱
+                  {(
+                    parseFloat(item.originalUnitPrice) * item.quantity
+                  ).toLocaleString("en-PH")}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderTop: "1px solid rgba(255,255,255,0.05)",
+              paddingTop: "12px",
+              flexWrap: "wrap",
+              gap: "10px",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,247,249,0.25)",
+                  margin: "0 0 2px",
+                }}
+              >
+                Total (upon confirmation)
+              </p>
+              <p
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.3rem",
+                  letterSpacing: "0.06em",
+                  color: "#e8a830",
+                  margin: 0,
+                }}
+              >
+                ₱{parseFloat(draft.totalPrice).toLocaleString("en-PH")}
+              </p>
+            </div>
+            {draft.invoiceUrl && (
+              <a
+                href={draft.invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "rgba(232,168,48,0.08)",
+                  border: "1px solid rgba(232,168,48,0.25)",
+                  borderRadius: "8px",
+                  padding: "9px 16px",
+                  color: "#e8a830",
+                  fontFamily: "monospace",
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  textDecoration: "none",
+                }}
+              >
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                View Invoice
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Profile Section ──────────────────────────────────────────────────────────
 function ProfileSection({
   customer,
@@ -3736,6 +4175,7 @@ export default function AccountClient({
     addresses: "Saved Addresses",
     "recently-viewed": "Recently Viewed",
     profile: "My Profile",
+    "pre-orders": "Pre-orders",
   };
 
   function handleNavClick(key: Section) {
@@ -4193,6 +4633,9 @@ export default function AccountClient({
             </div>
             {activeSection === "addresses" && (
               <AddressesSection customerId={customerId} />
+            )}
+            {activeSection === "pre-orders" && (
+              <PreOrdersSection email={liveCustomer.email} />
             )}
             {activeSection === "profile" && (
               <ProfileSection

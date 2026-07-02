@@ -148,7 +148,11 @@ export default async function ProductPage({ params }: Props) {
             </div>
 
             {/* Add to cart — client component for interactivity */}
-            <AddToCartSection variants={variants} options={options} />
+            <AddToCartSection
+              variants={variants}
+              options={options}
+              productTitle={product.title}
+            />
 
             {/* Description */}
             {product.description && (

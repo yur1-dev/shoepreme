@@ -21,9 +21,11 @@ interface Option {
 export default function AddToCartSection({
   variants,
   options,
+  productTitle,
 }: {
   variants: Variant[];
   options: Option[];
+  productTitle: string;
 }) {
   const { addToCart, isLoading, checkout } = useCart();
   const [selectedOptions, setSelectedOptions] = useState<
@@ -352,7 +354,7 @@ export default function AddToCartSection({
       {showReserve && selectedVariant && (
         <ReserveModal
           variantId={selectedVariant.id}
-          productTitle=""
+          productTitle={productTitle}
           variantTitle={selectedVariant.title}
           onClose={() => setShowReserve(false)}
         />
