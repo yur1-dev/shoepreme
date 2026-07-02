@@ -5,6 +5,7 @@ import Footer from "@/components/layout/Footer";
 import AddToCartSection from "./AddToCartSection";
 import ImageGallery from "./ImageGallery";
 import type { Metadata } from "next";
+import { auth } from "@/auth";
 
 interface Props {
   params: Promise<{ handle: string }>;
@@ -18,7 +19,6 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const product = await getProductByHandle(handle);
-  if (!product) return { title: "Product Not Found" };
   return {
     title: `${product.title} — Shoepreme PH`,
     description: product.description?.slice(0, 155) ?? "",
@@ -27,6 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { handle } = await params;
+  const session = await auth();
   const product = await getProductByHandle(handle);
 
   if (!product) notFound();
@@ -152,6 +153,8 @@ export default async function ProductPage({ params }: Props) {
               variants={variants}
               options={options}
               productTitle={product.title}
+              customerEmail={session?.user?.email ?? undefined}
+              customerName={session?.user?.name ?? undefined}
             />
 
             {/* Description */}

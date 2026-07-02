@@ -6,6 +6,8 @@ interface ReserveModalProps {
   variantId: string;
   productTitle: string;
   variantTitle: string;
+  customerEmail?: string;
+  customerName?: string;
   onClose: () => void;
 }
 
@@ -13,11 +15,14 @@ export default function ReserveModal({
   variantId,
   productTitle,
   variantTitle,
+  customerEmail,
+  customerName,
   onClose,
 }: ReserveModalProps) {
-  const [email, setEmail] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const nameParts = customerName?.trim().split(" ") ?? [];
+  const [email, setEmail] = useState(customerEmail ?? "");
+  const [firstName, setFirstName] = useState(nameParts[0] ?? "");
+  const [lastName, setLastName] = useState(nameParts.slice(1).join(" ") ?? "");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,28 +173,75 @@ export default function ReserveModal({
             <div
               style={{ display: "flex", flexDirection: "column", gap: "10px" }}
             >
-              <input
-                required
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={inputStyle}
-              />
-              <div style={{ display: "flex", gap: "10px" }}>
-                <input
-                  placeholder="First name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  style={{ ...inputStyle, width: "50%" }}
-                />
-                <input
-                  placeholder="Last name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  style={{ ...inputStyle, width: "50%" }}
-                />
-              </div>
+              {customerEmail ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1.5px solid rgba(255,255,255,0.06)",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="rgba(245,247,249,0.3)"
+                    strokeWidth="2"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: "rgba(245,247,249,0.4)",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {customerName ?? customerEmail}
+                  </span>
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.2)",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    Logged in
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <input
+                    required
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    style={inputStyle}
+                  />
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <input
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      style={{ ...inputStyle, width: "50%" }}
+                    />
+                    <input
+                      placeholder="Last name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      style={{ ...inputStyle, width: "50%" }}
+                    />
+                  </div>
+                </>
+              )}
               <input
                 placeholder="Phone (optional)"
                 value={phone}
