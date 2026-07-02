@@ -1417,3 +1417,30 @@ export async function publishAllUnpublished() {
   }
   return { success: true, published, failed, total: products.length };
 }
+export async function getProductByHandle(handle: string) {
+  const data = await adminFetch(
+    `
+    query getProductByHandle($handle: String!) {
+      products(first: 1, query: $handle) {
+        edges {
+          node {
+            id
+            title
+            handle
+            variants(first: 50) {
+              edges {
+                node {
+                  id
+                  inventoryQuantity
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `,
+    { handle: `handle:${handle}` },
+  );
+  return data?.data?.products?.edges?.[0]?.node ?? null;
+}

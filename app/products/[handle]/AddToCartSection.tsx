@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import ReserveModal from "@/components/ui/ReserveModal";
 
@@ -40,6 +40,15 @@ export default function AddToCartSection({
   const [added, setAdded] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [showReserve, setShowReserve] = useState(false);
+  const [inventory, setInventory] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const parts = window.location.pathname.split("/");
+    const handle = parts[parts.length - 1].split(":")[0];
+    fetch(`/api/product-inventory?handle=${handle}`)
+      .then(r => r.json())
+      .then(d => { if (d.variantInventory) setInventory(d.variantInventory); });
+  }, []);
 
   // Find matching variant for selected options
   const selectedVariant =
@@ -48,7 +57,7 @@ export default function AddToCartSection({
     ) ?? variants[0];
 
   const isAvailable = selectedVariant?.availableForSale ?? false;
-  const maxQty = selectedVariant?.quantityAvailable ?? 1;
+  const maxQty = selectedVariant ? (inventory[selectedVariant.id] ?? selectedVariant.quantityAvailable ?? 10) : 1;
 
   function selectOption(name: string, value: string) {
     setSelectedOptions((prev) => ({ ...prev, [name]: value }));
@@ -217,16 +226,16 @@ export default function AddToCartSection({
         </button>
       </div>
 
-      {isAvailable && maxQty <= 3 && (
+      {isAvailable && maxQty > 0 && (
         <p
           style={{
             fontSize: "11px",
-            color: "#e8a830",
+            color: maxQty <= 3 ? "#e8a830" : "rgba(245,247,249,0.4)",
             letterSpacing: "0.06em",
             marginBottom: "10px",
           }}
         >
-          Only {maxQty} left in stock
+          {maxQty <= 3 ? `Only ${maxQty} left in stock` : `${maxQty} in stock`}
         </p>
       )}
 
