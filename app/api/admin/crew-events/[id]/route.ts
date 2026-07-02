@@ -4,15 +4,16 @@ import CrewEvent from "@/lib/models/CrewEvent";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectToDatabase();
+    const { id } = await params;
     const body = await req.json();
     const { title, isoDate, location, type, description } = body;
 
     const updated = await CrewEvent.findByIdAndUpdate(
-      params.id,
+      id,
       { title, isoDate, location, type, description },
       { new: true },
     );
@@ -36,11 +37,12 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectToDatabase();
-    const deleted = await CrewEvent.findByIdAndDelete(params.id);
+    const { id } = await params;
+    const deleted = await CrewEvent.findByIdAndDelete(id);
 
     if (!deleted) {
       return NextResponse.json(
