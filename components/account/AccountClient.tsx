@@ -3229,6 +3229,68 @@ interface DraftOrder {
   totalPrice: string;
 }
 
+function CancelPreOrderButton({ draftId, draftName, onCancelled }: { draftId: string; draftName: string; onCancelled: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/account-api/pre-orders/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftOrderId: draftId }),
+      });
+      if (res.ok) {
+        setOpen(false);
+        onCancelled();
+      }
+    } catch (err) {
+      console.error("Failed to cancel pre-order", err);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        style={{ width: "100%", padding: "11px", background: "transparent", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "10px", color: "rgba(248,113,113,0.6)", fontFamily: "monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", cursor: "pointer", transition: "border-color 0.15s, color 0.15s" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(248,113,113,0.4)"; (e.currentTarget as HTMLButtonElement).style.color = "#f87171"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(248,113,113,0.2)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(248,113,113,0.6)"; }}
+      >
+        Cancel Reservation
+      </button>
+      {mounted && open && createPortal(
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", zIndex: 99998 }} />
+          <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "min(380px, calc(100vw - 48px))", background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "18px", padding: "28px", zIndex: 99999 }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "18px" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" /></svg>
+            </div>
+            <p style={{ fontFamily: "monospace", fontSize: "8px", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(248,113,113,0.5)", margin: "0 0 6px" }}>{draftName}</p>
+            <h3 style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "1.6rem", letterSpacing: "0.06em", color: "#f5f7f9", margin: "0 0 10px" }}>Cancel this reservation?</h3>
+            <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.4)", letterSpacing: "0.04em", margin: "0 0 24px", lineHeight: 1.7 }}>
+              This will remove your reservation. No payment has been made, so nothing will be charged. This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setOpen(false)} disabled={cancelling} style={{ flex: 1, padding: "13px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "rgba(245,247,249,0.4)", fontFamily: "monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", cursor: cancelling ? "default" : "pointer", opacity: cancelling ? 0.5 : 1 }}>Keep It</button>
+              <button onClick={handleCancel} disabled={cancelling} style={{ flex: 1, padding: "13px", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: "10px", color: "#f87171", fontFamily: "monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", cursor: cancelling ? "default" : "pointer", opacity: cancelling ? 0.6 : 1 }}>
+                {cancelling ? "Cancelling…" : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
+
 function PreOrdersSection({ email }: { email?: string }) {
   const [drafts, setDrafts] = useState<DraftOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3561,41 +3623,40 @@ function PreOrdersSection({ email }: { email?: string }) {
           {/* Footer */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
               borderTop: "1px solid rgba(255,255,255,0.05)",
               paddingTop: "12px",
-              flexWrap: "wrap",
+              display: "flex",
+              flexDirection: "column",
               gap: "10px",
             }}
           >
-            <div>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "8px",
-                  fontWeight: 800,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "rgba(245,247,249,0.25)",
-                  margin: "0 0 2px",
-                }}
-              >
-                Total (upon confirmation)
-              </p>
-              <p
-                style={{
-                  fontFamily: "Bebas Neue, sans-serif",
-                  fontSize: "1.3rem",
-                  letterSpacing: "0.06em",
-                  color: "#e8a830",
-                  margin: 0,
-                }}
-              >
-                ₱{parseFloat(draft.totalPrice).toLocaleString("en-PH")}
-              </p>
-            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+              <div>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "8px",
+                    fontWeight: 800,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "rgba(245,247,249,0.25)",
+                    margin: "0 0 2px",
+                  }}
+                >
+                  Total (upon confirmation)
+                </p>
+                <p
+                  style={{
+                    fontFamily: "Bebas Neue, sans-serif",
+                    fontSize: "1.3rem",
+                    letterSpacing: "0.06em",
+                    color: "#e8a830",
+                    margin: 0,
+                  }}
+                >
+                  ₱{parseFloat(draft.totalPrice).toLocaleString("en-PH")}
+                </p>
+              </div>
             {draft.invoiceUrl && (
               <a
                 href={draft.invoiceUrl}
@@ -3633,6 +3694,14 @@ function PreOrdersSection({ email }: { email?: string }) {
                 </svg>
                 View Invoice
               </a>
+            )}
+            </div>
+            {draft.status === "OPEN" && (
+              <CancelPreOrderButton
+                draftId={draft.id}
+                draftName={draft.name}
+                onCancelled={() => setDrafts((prev) => prev.filter((d) => d.id !== draft.id))}
+              />
             )}
           </div>
         </div>
@@ -4154,7 +4223,8 @@ export default function AccountClient({
                       .mobile-hide-orders { display: none !important; }
                     }
             @media (min-width: 769px) {
-          .account-sidebar { position: sticky !important; top: 80px !important; align-self: flex-start !important; height: calc(100vh - 80px) !important; overflow-y: auto !important; }
+          .account-sidebar { position: fixed !important; top: 80px !important; left: calc((100vw - 1280px) / 2 + 32px) !important; width: 240px !important; height: calc(100vh - 80px) !important; overflow-y: auto !important; z-index: 10 !important; }
+          .account-content { margin-left: 240px !important; }
         }
       `}</style>
 
