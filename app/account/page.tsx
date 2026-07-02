@@ -81,13 +81,6 @@ export default async function AccountPage() {
     session.user.email?.split("@")[0] ||
     "Crew";
 
-  const customerData = {
-    displayName,
-    email: customer?.email ?? session.user.email ?? undefined,
-    phone: (dbCustomer as any)?.phone ?? customer?.phone ?? undefined,
-    numberOfOrders: customer?.numberOfOrders ?? 0,
-  };
-
   // Fetch orders server-side using the OAuth token
   let initialOrders: any[] = [];
   if (token) {
@@ -180,6 +173,13 @@ export default async function AccountPage() {
       console.error("Failed to fetch orders server-side", err);
     }
   }
+  const customerData = {
+    displayName,
+    email: customer?.email ?? session.user.email ?? undefined,
+    phone: (dbCustomer as any)?.phone ?? customer?.phone ?? undefined,
+    numberOfOrders: initialOrders.length,
+  };
+
   return (
     <div
       style={{
