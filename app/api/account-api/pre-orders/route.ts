@@ -38,6 +38,18 @@ export async function GET(req: NextRequest) {
                   quantity
                   variantTitle
                   originalUnitPrice
+                  variant {
+                    image {
+                      url
+                      altText
+                    }
+                    product {
+                      featuredImage {
+                        url
+                        altText
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -69,6 +81,11 @@ export async function GET(req: NextRequest) {
       quantity: item.quantity,
       variantTitle: item.variantTitle,
       originalUnitPrice: item.originalUnitPrice,
+      image:
+        item.variant?.image?.url ??
+        item.variant?.product?.featuredImage?.url ??
+        null,
+      imageAlt: item.variant?.image?.altText ?? item.title,
     })),
   }));
 
