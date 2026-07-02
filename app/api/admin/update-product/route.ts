@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateProductInfo } from "@/lib/shopify-admin";
+import { updateProductInfo, addProductToCollection } from "@/lib/shopify-admin";
 
 export async function POST(req: NextRequest) {
-  const { id, title, descriptionHtml, status, productType } = await req.json();
+  const body = await req.json();
+  console.log("update-product body:", body);
+  const { id, title, descriptionHtml, status, collection } = body;
+  console.log("collection value:", collection);
   const result = await updateProductInfo(
     id,
     title,
     descriptionHtml,
     status,
-    productType,
   );
+  if (result.success && collection) {
+    await addProductToCollection(id, collection);
+  }
   return NextResponse.json(result);
 }

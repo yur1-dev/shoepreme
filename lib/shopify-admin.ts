@@ -476,7 +476,7 @@ export async function updateProductInfo(
         title,
         descriptionHtml,
         status,
-        ...(productType !== undefined && { productType }),
+        productType: "",
       },
     },
   );
@@ -704,7 +704,7 @@ export async function createProduct(input: {
   // Step 1: Create product shell
   const productInput: any = {
     title: input.title,
-    productType: input.productType,
+    productType: "",
     descriptionHtml: input.descriptionHtml,
     status: input.status,
   };
@@ -741,6 +741,7 @@ export async function createProduct(input: {
   if (!product) return { success: false, error: "Product creation failed" };
 
   await publishToOnlineStore(product.id);
+  if (input.productType) await addProductToCollection(product.id, input.productType);
 
   const locationId = await getPrimaryLocationId();
 
@@ -1443,4 +1444,52 @@ export async function getProductByHandle(handle: string) {
     { handle: `handle:${handle}` },
   );
   return data?.data?.products?.edges?.[0]?.node ?? null;
+}
+export async function getCollections() {
+  const data = await adminFetch(`
+    query {
+      collections(first: 50) {
+        edges {
+          node {
+            id
+            title
+            handle
+          }
+        }
+      }
+    }
+  `);
+  return data?.data?.collections?.edges?.map((e: any) => e.node) ?? [];
+}
+const CATEGORY_COLLECTION_MAP: Record<string, string> = {
+  "Men": "gid://shopify/Collection/339158302915",
+  "Women": "gid://shopify/Collection/339158335683",
+  "Basketball & Court": "gid://shopify/Collection/338953076931",
+  "Running": "gid://shopify/Collection/338984304835",
+  "Trail": "gid://shopify/Collection/338984337603",
+  "Sneakers": "gid://shopify/Collection/339403899075",
+  "In-Store": "gid://shopify/Collection/339158237379",
+  "Sale": "gid://shopify/Collection/339402653891",
+  "New In Stock": "gid://shopify/Collection/341517861059",
+};
+
+export async function addProductToCollection(productId: string, productType: string) {
+  const collectionId = CATEGORY_COLLECTION_MAP[productType];
+  if (!collectionId) return { success: false, error: "No matching collection" };
+
+  const data = await adminFetch(
+    `
+    mutation collectionAddProducts($id: ID!, $productIds: [ID!]!) {
+      collectionAddProducts(id: $id, productIds: $productIds) {
+        collection { id title }
+        userErrors { field message }
+      }
+    }
+  `,
+    { id: collectionId, productIds: [productId] },
+  );
+
+  const errors = data?.data?.collectionAddProducts?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
 }
