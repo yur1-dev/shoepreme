@@ -3280,6 +3280,8 @@ interface DraftOrder {
     quantity: number;
     variantTitle?: string;
     originalUnitPrice: string;
+    image?: string | null;
+    imageAlt?: string;
   }[];
   totalPrice: string;
 }
@@ -3537,18 +3539,31 @@ function PreOrdersSection({ email }: { email?: string }) {
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
+                      overflow: "hidden",
                     }}
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="rgba(232,168,48,0.5)"
-                      strokeWidth="1.5"
-                    >
-                      <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                    </svg>
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.imageAlt ?? item.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="rgba(232,168,48,0.5)"
+                        strokeWidth="1.5"
+                      >
+                        <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                    )}
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <p
