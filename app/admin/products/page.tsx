@@ -299,7 +299,7 @@ function ProductModal({
 }: {
   modal: Exclude<ModalState, null>;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (newProductId?: string) => void;
   onSizeAdded: (productId: string) => void;
   showToast: (msg: string, ok?: boolean) => void;
 }) {
@@ -732,6 +732,9 @@ function ProductModal({
         }
 
         showToast("Product created ✓");
+        onSaved(data.product?.id);
+        onClose();
+        return;
       }
       onSaved();
       onClose();
@@ -2008,13 +2011,26 @@ export default function AdminProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
    const fetchProducts = useCallback(async (delay?: number) => {
-  if (delay) await new Promise((r) => setTimeout(r, delay));
-    setLoading(true);
-    const res = await fetch("/api/admin/products", { cache: "no-store" });
-    const data = await res.json();
-    setProducts(data);
-    setLoading(false);
-  }, []);
+     if (delay) await new Promise((r) => setTimeout(r, delay));
+     setLoading(true);
+     const res = await fetch("/api/admin/products", { cache: "no-store" });
+     const data = await res.json();
+     setProducts(data);
+     setLoading(false);
+     return data;
+   }, []);
+
+   const fetchProductsUntilPresent = useCallback(
+     async (newProductId?: string, attempts = 6) => {
+       for (let i = 0; i < attempts; i++) {
+         const data = await fetchProducts();
+         if (!newProductId) return;
+         if (data.some((p: any) => p.id === newProductId)) return;
+         await new Promise((r) => setTimeout(r, 1000));
+       }
+     },
+     [fetchProducts],
+   );
 
   const refreshModalProduct = useCallback(async (productId: string) => {
     const res = await fetch(`/api/admin/product?id=${encodeURIComponent(productId)}`, {
@@ -2415,7 +2431,11 @@ export default function AdminProductsPage() {
       <ProductModal
         modal={modal}
         onClose={() => setModal(null)}
-        onSaved={() => fetchProducts(2000)}
+        onSaved={(newProductId?: string) =>
+          newProductId
+            ? fetchProductsUntilPresent(newProductId)
+            : fetchProducts()
+        }
         onSizeAdded={refreshModalProduct}
         showToast={showToast}
       />

@@ -740,6 +740,8 @@ export async function createProduct(input: {
   const product = createData?.data?.productCreate?.product;
   if (!product) return { success: false, error: "Product creation failed" };
 
+  await publishToOnlineStore(product.id);
+
   const locationId = await getPrimaryLocationId();
 
   // Step 2a: No sizes — update default variant price only
@@ -1379,4 +1381,39 @@ export async function markOrderDelivered(orderId: string) {
   const errors = data?.data?.fulfillmentEventCreate?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
   return { success: true };
+}
+export async function publishToOnlineStore(productId: string) {
+  const data = await adminFetch(`
+    query {
+      publications(first: 10) {
+        edges { node { id name } }
+      }
+    }
+  `);
+
+  const publications = data?.data?.publications?.edges ?? [];
+
+  for (const { node } of publications) {
+    await adminFetch(
+      `mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+        publishablePublish(id: $id, input: $input) {
+          userErrors { field message }
+        }
+      }`,
+      { id: productId, input: [{ publicationId: node.id }] }
+    );
+  }
+
+  return { success: true };
+}
+export async function publishAllUnpublished() {
+  const products = await getProducts(250);
+  let published = 0;
+  let failed = 0;
+  for (const p of products) {
+    const result = await publishToOnlineStore(p.id);
+    if (result.success) published++;
+    else failed++;
+  }
+  return { success: true, published, failed, total: products.length };
 }
