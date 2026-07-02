@@ -24,7 +24,7 @@ const CATEGORY_MAP: Record<string, string> = {
   sale: "Sale",
   new: "New In Stock",
 };
-
+export const dynamic = "force-dynamic";
 export async function generateStaticParams() {
   const products = await getAllProducts(250);
   return [

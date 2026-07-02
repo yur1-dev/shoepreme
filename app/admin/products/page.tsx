@@ -94,9 +94,10 @@ function emptyDraft(): DraftProduct {
       };
     }
   });
+  const collectionTitle = product.collections?.edges?.[0]?.node?.title ?? "";
   return {
     title: product.title,
-    productType: product.productType ?? "",
+    productType: collectionTitle,
     descriptionHtml: product.descriptionHtml?.replace(/<[^>]+>/g, "") ?? "",
     status: product.status,
     price: firstVariant?.price ?? "0.00",
@@ -595,7 +596,8 @@ function ProductModal({
               ? `<p>${draft.descriptionHtml}</p>`
               : "",
             status: draft.status,
-            productType: draft.productType,
+            productType: "",
+            collection: draft.productType,
           }),
         });
         const d1 = await safeJson(r1);
@@ -2338,7 +2340,7 @@ export default function AdminProductsPage() {
                         margin: 0,
                       }}
                     >
-                      {product.productType || "—"} ·{" "}
+                      {product.collections?.edges?.[0]?.node?.title || "—"} ·{" "}
                       {product.variants?.edges?.length ?? 1} size
                       {(product.variants?.edges?.length ?? 1) !== 1 ? "s" : ""}
                     </p>
