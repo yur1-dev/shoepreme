@@ -231,6 +231,7 @@ export async function getOrders(first = 20) {
             createdAt
             displayFinancialStatus
             displayFulfillmentStatus
+            tags
             cancelledAt
             cancelReason
             paymentGatewayNames
@@ -1200,6 +1201,98 @@ export async function setFulfillmentOrderStatus(
   if (errors.length) return { success: false, error: errors[0].message };
   return { success: true };
 }
+export async function startFulfillmentProgress(orderId: string) {
+  // Get the open fulfillment order
+  const foData = await adminFetch(
+    `
+    query getFulfillmentOrders($orderId: ID!) {
+      order(id: $orderId) {
+        fulfillmentOrders(first: 5) {
+          edges { node { id status } }
+        }
+      }
+    }
+  `,
+    { orderId },
+  );
+
+  const edges = foData?.data?.order?.fulfillmentOrders?.edges ?? [];
+  const fo = edges.find((e: any) => e.node.status === "OPEN");
+
+  if (fo) {
+    // Try the real Shopify status change first
+    const submitData = await adminFetch(
+      `
+      mutation submitRequest($id: ID!) {
+        fulfillmentOrderSubmitFulfillmentRequest(id: $id) {
+          fulfillmentRequest { id }
+          userErrors { field message }
+        }
+      }
+    `,
+      { id: fo.node.id },
+    );
+
+    const submitErrors = submitData?.data?.fulfillmentOrderSubmitFulfillmentRequest?.userErrors;
+
+    if (!submitErrors?.length) {
+      const acceptData = await adminFetch(
+        `
+        mutation acceptRequest($id: ID!, $message: String) {
+          fulfillmentOrderAcceptFulfillmentRequest(id: $id, message: $message) {
+            fulfillmentOrder { id status }
+            userErrors { field message }
+          }
+        }
+      `,
+        { id: fo.node.id, message: "Processing order" },
+      );
+
+      const acceptErrors = acceptData?.data?.fulfillmentOrderAcceptFulfillmentRequest?.userErrors;
+
+      if (!acceptErrors?.length) {
+        return { success: true, mode: "real" };
+      }
+    }
+  }
+
+  // Fallback: real mutation unsupported (manual fulfillment service) — use tag instead
+  const tagResult = await addOrderTag(orderId, "in-progress");
+  if (!tagResult.success) return tagResult;
+  return { success: true, mode: "tag" };
+}export async function addOrderTag(orderId: string, tag: string) {
+  const data = await adminFetch(
+    `
+    mutation addTags($id: ID!, $tags: [String!]!) {
+      tagsAdd(id: $id, tags: $tags) {
+        node { id }
+        userErrors { field message }
+      }
+    }
+  `,
+    { id: orderId, tags: [tag] },
+  );
+  const errors = data?.data?.tagsAdd?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
+
+export async function removeOrderTag(orderId: string, tag: string) {
+  const data = await adminFetch(
+    `
+    mutation removeTags($id: ID!, $tags: [String!]!) {
+      tagsRemove(id: $id, tags: $tags) {
+        node { id }
+        userErrors { field message }
+      }
+    }
+  `,
+    { id: orderId, tags: [tag] },
+  );
+  const errors = data?.data?.tagsRemove?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
 export async function getCustomers(first = 100) {
   const data = await adminFetch(
     `
@@ -1381,6 +1474,8 @@ export async function markOrderDelivered(orderId: string) {
 
   const errors = data?.data?.fulfillmentEventCreate?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
+
+  await addOrderTag(orderId, "delivered");
   return { success: true };
 }
 export async function publishToOnlineStore(productId: string) {
@@ -1490,6 +1585,42 @@ export async function addProductToCollection(productId: string, productType: str
   );
 
   const errors = data?.data?.collectionAddProducts?.userErrors;
+  if (errors?.length) return { success: false, error: errors[0].message };
+  return { success: true };
+}
+
+export async function releaseFulfillmentHold(orderId: string) {
+  const foData = await adminFetch(
+    `
+    query getFulfillmentOrders($orderId: ID!) {
+      order(id: $orderId) {
+        fulfillmentOrders(first: 5) {
+          edges { node { id status } }
+        }
+      }
+    }
+  `,
+    { orderId },
+  );
+
+  const edges = foData?.data?.order?.fulfillmentOrders?.edges ?? [];
+  const fo = edges.find((e: any) => e.node.status === "ON_HOLD");
+
+  if (!fo) return { success: false, error: "No on-hold fulfillment order found" };
+
+  const data = await adminFetch(
+    `
+    mutation releaseHold($id: ID!) {
+      fulfillmentOrderReleaseHold(id: $id) {
+        fulfillmentOrder { id status }
+        userErrors { field message }
+      }
+    }
+  `,
+    { id: fo.node.id },
+  );
+
+  const errors = data?.data?.fulfillmentOrderReleaseHold?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
   return { success: true };
 }
