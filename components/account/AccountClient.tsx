@@ -34,6 +34,8 @@ const STATUS_COLORS: Record<string, string> = {
   PAID: "#4ade80",
   PENDING: "#e8a830",
   REFUNDED: "#f87171",
+  VOIDED: "#f87171",
+  CANCELLED: "#f87171",
   FULFILLED: "#4a7fa5",
   UNFULFILLED: "rgba(245,247,249,0.4)",
   PARTIALLY_FULFILLED: "#e8a830",
@@ -96,6 +98,7 @@ interface Order {
   processedAt: string;
   financialStatus: string;
   fulfillmentStatus: string;
+  cancelledAt?: string | null;
   statusUrl?: string;
   currentTotalPrice: MoneyV2;
   subtotalPrice: MoneyV2;
@@ -252,7 +255,7 @@ const ORDER_TABS: {
   {
     key: "cancelled",
     label: "Cancelled",
-    filter: (o) => o.financialStatus === "REFUNDED",
+    filter: (o) => o.financialStatus === "REFUNDED" || o.financialStatus === "VOIDED" || !!o.cancelledAt,
   },
 ];
 
@@ -886,7 +889,7 @@ function OrderDetail({
   const items = order.lineItems.edges.map((e) => e.node);
   const addr = order.shippingAddress;
   const isPending = order.financialStatus === "PENDING";
-  const isCancellable = order.financialStatus === "PENDING";
+  const isCancellable = order.financialStatus === "PENDING" && !order.cancelledAt;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -4781,7 +4784,7 @@ export default function AccountClient({
                 </svg>
               ),
               tab: "cancelled",
-              count: orders.filter((o) => o.financialStatus === "REFUNDED")
+              count: orders.filter((o) => o.financialStatus === "REFUNDED" || o.financialStatus === "VOIDED" || !!o.cancelledAt)
                 .length,
             },
           ].map((item) => (
