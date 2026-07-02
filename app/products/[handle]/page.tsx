@@ -6,7 +6,8 @@ import AddToCartSection from "./AddToCartSection";
 import ImageGallery from "./ImageGallery";
 import ProductCard from "@/components/ui/ProductCard";
 import type { Metadata } from "next";
-export const dynamic = "force-dynamic";
+import { auth } from "@/auth";
+
 interface Props {
   params: Promise<{ handle: string }>;
 }
@@ -38,7 +39,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: `${CATEGORY_MAP[handle]} — Shoepreme PH` };
   }
   const product = await getProductByHandle(handle);
-  if (!product) return { title: "Product Not Found" };
   return {
     title: `${product.title} — Shoepreme PH`,
     description: product.description?.slice(0, 155) ?? "",
@@ -47,57 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { handle } = await params;
-
-  // ── Category page ──────────────────────────────────────────────
-  const categoryLabel = CATEGORY_MAP[handle];
-  if (categoryLabel) {
-    const allProducts = await getAllProducts(250);
-    const products = allProducts.filter(
-      (p: any) => p.productType?.toLowerCase() === categoryLabel.toLowerCase()
-    );
-
-    return (
-      <main style={{ background: "#0d1117", minHeight: "100vh" }}>
-        <Navbar />
-        <div style={{ paddingTop: "96px" }}>
-          <div style={{ background: "#0d1117", padding: "clamp(40px, 7vw, 72px) 0", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0, rgba(255,255,255,0.012) 1px, transparent 0, transparent 50%)", backgroundSize: "30px 30px", pointerEvents: "none" }} />
-            <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 32px", position: "relative" }}>
-              <p style={{ color: "#4a7fa5", fontSize: "11px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "10px" }}>
-                Category
-              </p>
-              <h1 style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "clamp(3rem, 7vw, 5.5rem)", color: "#f5f7f9", lineHeight: 1 }}>
-                {categoryLabel}
-              </h1>
-            </div>
-          </div>
-
-          <section style={{ maxWidth: "1280px", margin: "0 auto", padding: "clamp(40px, 5vw, 64px) 32px" }}>
-            {products.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "80px 0" }}>
-                <p style={{ color: "#8896a7", fontSize: "14px", marginBottom: "20px" }}>
-                  No products in this category yet.
-                </p>
-                <a href="/products" style={{ color: "#fff", padding: "12px 28px", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", textDecoration: "none", fontSize: "11px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                  Shop All Products
-                </a>
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
-                {products.map((product: any) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            )}
-          </section>
-
-          <Footer />
-        </div>
-      </main>
-    );
-  }
-
-  // ── Product detail page ────────────────────────────────────────
+  const session = await auth();
   const product = await getProductByHandle(handle);
   if (!product) notFound();
 
@@ -146,7 +96,14 @@ export default async function ProductPage({ params }: Props) {
               </span>
             </div>
 
-            <AddToCartSection variants={variants} options={options} />
+            {/* Add to cart — client component for interactivity */}
+            <AddToCartSection
+              variants={variants}
+              options={options}
+              productTitle={product.title}
+              customerEmail={session?.user?.email ?? undefined}
+              customerName={session?.user?.name ?? undefined}
+            />
 
             {product.description && (
               <div style={{ marginTop: "32px", paddingTop: "28px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
