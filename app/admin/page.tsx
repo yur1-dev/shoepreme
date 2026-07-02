@@ -367,10 +367,9 @@ export default function AdminOrdersPage() {
     win.document.close();
   }
   const pending = orders.filter((o) => o.displayFinancialStatus === "PENDING");
-  const totalValue = orders.reduce(
-    (s, o) => s + parseFloat(o.totalPriceSet.shopMoney.amount),
-    0,
-  );
+  const totalValue = orders
+    .filter((o) => o.displayFinancialStatus === "PAID")
+    .reduce((s, o) => s + parseFloat(o.totalPriceSet.shopMoney.amount), 0);
 
   const filtered = useMemo(() => {
     let list = orders;
@@ -468,7 +467,7 @@ export default function AdminOrdersPage() {
             sub={pending.length > 0 ? "awaiting payment" : "none"}
           />
           <StatCard
-            label="Total Value"
+            label="Total Paid Value"
             value={`₱${totalValue.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`}
             color="#4ade80"
             sub="combined orders"
