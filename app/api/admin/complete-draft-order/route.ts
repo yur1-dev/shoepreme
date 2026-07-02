@@ -20,14 +20,14 @@ export async function POST(req: NextRequest) {
 
   const data = await adminFetch(
     `
-    mutation draftOrderComplete($id: ID!) {
-      draftOrderComplete(id: $id) {
+    mutation draftOrderComplete($id: ID!, $paymentPending: Boolean) {
+      draftOrderComplete(id: $id, paymentPending: $paymentPending) {
         draftOrder { id order { id name } }
         userErrors { field message }
       }
     }
   `,
-    { id: draftOrderId },
+    { id: draftOrderId, paymentPending: true },
   );
 
   const errors = data?.data?.draftOrderComplete?.userErrors;
