@@ -24,7 +24,7 @@ const NAV_LINKS: {
 }[] = [
   {
     label: "Shop",
-    href: "/collections",
+    href: "/products",
     children: [
       { label: "Men", href: "/collections/men" },
       { label: "Women", href: "/collections/women" },

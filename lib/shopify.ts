@@ -39,6 +39,7 @@ availableForSale
     options { id name values }
     tags
     vendor
+    productType
   }
 `;
 
