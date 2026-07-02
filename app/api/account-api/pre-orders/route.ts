@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const data = await adminFetch(
     `
     query getDraftOrders($query: String!) {
-      draftOrders(first: 20, query: $query, sortKey: CREATED_AT, reverse: true) {
+        draftOrders(first: 20, query: $query, sortKey: NUMBER, reverse: true) {
         edges {
           node {
             id
