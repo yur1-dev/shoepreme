@@ -35,8 +35,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: errors[0].message });
   }
 
-  return NextResponse.json({
-    success: true,
-    order: data?.data?.draftOrderComplete?.draftOrder?.order,
-  });
+  const order = data?.data?.draftOrderComplete?.draftOrder?.order;
+
+  // Send the customer a payment link email now that stock is confirmed
+  if (order?.id) {
+    const invoiceData = await adminFetch(
+      `
+      mutation draftOrderInvoiceSend($id: ID!) {
+        draftOrderInvoiceSend(id: $id) {
+          draftOrder { id invoiceUrl }
+          userErrors { field message }
+        }
+      }
+    `,
+      { id: draftOrderId },
+    );
+    const invoiceErrors = invoiceData?.data?.draftOrderInvoiceSend?.userErrors;
+    if (invoiceErrors?.length) {
+      console.error(
+        "Invoice send error:",
+        JSON.stringify(invoiceErrors, null, 2),
+      );
+    }
+  }
+
+  return NextResponse.json({ success: true, order });
 }

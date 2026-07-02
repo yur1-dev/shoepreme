@@ -96,6 +96,7 @@ interface Order {
   processedAt: string;
   financialStatus: string;
   fulfillmentStatus: string;
+  statusUrl?: string;
   currentTotalPrice: MoneyV2;
   subtotalPrice: MoneyV2;
   totalShippingPrice: MoneyV2;
@@ -987,104 +988,43 @@ function OrderDetail({
             </span>
           </div>
 
-          {/* Payment methods */}
-          <div>
-            <p
+          {/* Pay Now */}
+          {order.statusUrl && (
+            <a
+              href={order.statusUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "14px",
+                background: "#e8a830",
+                borderRadius: "10px",
+                color: "#0d1117",
                 fontFamily: "monospace",
-                fontSize: "8px",
+                fontSize: "11px",
                 fontWeight: 800,
-                letterSpacing: "0.2em",
+                letterSpacing: "0.16em",
                 textTransform: "uppercase",
-                color: "rgba(245,247,249,0.3)",
-                margin: "0 0 10px",
+                textDecoration: "none",
               }}
             >
-              How to Pay
-            </p>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              {[
-                {
-                  label: "GCash",
-                  icon: (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    >
-                      <rect x="5" y="2" width="14" height="20" rx="2" />
-                      <path d="M12 18h.01" />
-                    </svg>
-                  ),
-                },
-                {
-                  label: "Cash on Delivery",
-                  icon: (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    >
-                      <rect x="1" y="3" width="15" height="13" rx="1" />
-                      <path d="M16 8h4l3 3v5h-7V8z" />
-                    </svg>
-                  ),
-                },
-                {
-                  label: "Pay In-Store",
-                  icon: (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    >
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                      <polyline points="9 22 9 12 15 12 15 22" />
-                    </svg>
-                  ),
-                },
-              ].map((method) => (
-                <div
-                  key={method.label}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "7px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "8px",
-                    padding: "8px 12px",
-                    color: "rgba(245,247,249,0.6)",
-                  }}
-                >
-                  {method.icon}
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: "9px",
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {method.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+              Pay Now
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              >
+                <path d="M7 17l9.2-9.2M17 17V7H7" />
+              </svg>
+            </a>
+          )}
 
           {/* Note */}
           <p
@@ -1097,8 +1037,8 @@ function OrderDetail({
               lineHeight: 1.6,
             }}
           >
-            Your order is confirmed and reserved. Complete payment using any
-            method above to proceed with fulfillment.
+            Your order is confirmed and reserved. Tap Pay Now to complete
+            payment via GCash, card, or other available methods.
           </p>
         </div>
       )}

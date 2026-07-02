@@ -5,7 +5,9 @@ const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN!;
 
 export async function GET(request: NextRequest) {
   try {
-    const customerAccessToken = request.nextUrl.searchParams.get("customerAccessToken");
+    const customerAccessToken = request.nextUrl.searchParams.get(
+      "customerAccessToken",
+    );
 
     if (!customerAccessToken) {
       return NextResponse.json(
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
                 processedAt
                 financialStatus
                 fulfillmentStatus
+                statusUrl
                 currentTotalPrice { amount currencyCode }
                 subtotalPrice { amount currencyCode }
                 totalShippingPrice { amount currencyCode }
@@ -66,7 +69,10 @@ export async function GET(request: NextRequest) {
 
     if (json.errors) {
       console.error("[orders] Shopify errors:", json.errors);
-      return NextResponse.json({ error: json.errors[0].message }, { status: 400 });
+      return NextResponse.json(
+        { error: json.errors[0].message },
+        { status: 400 },
+      );
     }
 
     const edges = json.data?.customer?.orders?.edges ?? [];
@@ -77,9 +83,16 @@ export async function GET(request: NextRequest) {
       processedAt: node.processedAt,
       financialStatus: node.financialStatus,
       fulfillmentStatus: node.fulfillmentStatus ?? "UNFULFILLED",
+      statusUrl: node.statusUrl,
       currentTotalPrice: node.currentTotalPrice,
-      subtotalPrice: node.subtotalPrice ?? { amount: "0.00", currencyCode: "PHP" },
-      totalShippingPrice: node.totalShippingPrice ?? { amount: "0.00", currencyCode: "PHP" },
+      subtotalPrice: node.subtotalPrice ?? {
+        amount: "0.00",
+        currencyCode: "PHP",
+      },
+      totalShippingPrice: node.totalShippingPrice ?? {
+        amount: "0.00",
+        currencyCode: "PHP",
+      },
       shippingAddress: node.shippingAddress
         ? {
             id: `addr-${node.id}`,
@@ -101,6 +114,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ orders });
   } catch (err) {
     console.error("[GET /api/account-api/orders]", err);
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch orders" },
+      { status: 500 },
+    );
   }
 }

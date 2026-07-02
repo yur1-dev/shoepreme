@@ -26,70 +26,6 @@ type CrewEvent = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Data — swap with API / Mongoose later, same shape
 // ─────────────────────────────────────────────────────────────────────────────
-const EVENTS: CrewEvent[] = [
-  {
-    id: "01",
-    date: "05",
-    month: "JUL",
-    year: "2025",
-    isoDate: "2025-07-05",
-    title: "SP Crew Morning Run",
-    location: "Koronadal City Sports Complex",
-    type: "RUN",
-    status: "UPCOMING",
-    description:
-      "Early 5AM group run. All paces welcome. Wear your loudest kicks.",
-  },
-  {
-    id: "02",
-    date: "19",
-    month: "JUL",
-    year: "2025",
-    isoDate: "2025-07-19",
-    title: "New Drop Viewing Night",
-    location: "Shoepreme Store — GenSan",
-    type: "LAUNCH",
-    status: "UPCOMING",
-    description:
-      "First look at the incoming JP shipment. Crew members get first dibs before it hits the site.",
-  },
-  {
-    id: "03",
-    date: "02",
-    month: "AUG",
-    year: "2025",
-    isoDate: "2025-08-02",
-    title: "Koronadal Fun Run",
-    location: "Marbel City Route",
-    type: "RACE",
-    status: "UPCOMING",
-    description: "5K and 10K categories. Crew members get a race kit discount.",
-  },
-  {
-    id: "04",
-    date: "15",
-    month: "JUN",
-    year: "2025",
-    isoDate: "2025-06-15",
-    title: "First Crew Run",
-    location: "Koronadal Oval",
-    type: "RUN",
-    status: "PAST",
-    description: "Where it started. 22 runners showed up.",
-  },
-  {
-    id: "05",
-    date: "01",
-    month: "JUN",
-    year: "2025",
-    isoDate: "2025-06-01",
-    title: "Crew Founding",
-    location: "Shoepreme HQ",
-    type: "MEETUP",
-    status: "PAST",
-    description: "The first THE CREW gathering. Unofficial. Legendary.",
-  },
-];
 
 const TYPE_STYLES: Record<
   EventType,
@@ -631,15 +567,24 @@ function CalendarView({ events }: { events: CrewEvent[] }) {
 // Page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function TheCrewPage() {
+  const [events, setEvents] = useState<CrewEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
   const [filter, setFilter] = useState<"ALL" | "UPCOMING" | "PAST">("ALL");
   const [view, setView] = useState<"LIST" | "CALENDAR">("LIST");
   const width = useWindowWidth();
   const isMobile = width < 640;
   const isTablet = width < 900;
 
+  useEffect(() => {
+    fetch("/api/crew-events")
+      .then((res) => res.json())
+      .then((data) => setEvents(data.events ?? []))
+      .finally(() => setLoadingEvents(false));
+  }, []);
+
   const filtered =
-    filter === "ALL" ? EVENTS : EVENTS.filter((e) => e.status === filter);
-  const nextEvent = EVENTS.find((e) => e.status === "UPCOMING");
+    filter === "ALL" ? events : events.filter((e) => e.status === filter);
+  const nextEvent = events.find((e) => e.status === "UPCOMING");
 
   return (
     <main style={{ minHeight: "100vh", background: "#0d1117" }}>
@@ -1355,7 +1300,7 @@ export default function TheCrewPage() {
                 padding: "clamp(20px, 4vw, 32px)",
               }}
             >
-              <CalendarView events={EVENTS} />
+              <CalendarView events={events} />
             </div>
           ) : (
             /* List view */
@@ -1518,7 +1463,7 @@ export default function TheCrewPage() {
                   </div>
                 );
               })}
-              {filtered.length === 0 && (
+              {!loadingEvents && filtered.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0" }}>
                   <p
                     style={{
@@ -1530,6 +1475,21 @@ export default function TheCrewPage() {
                     }}
                   >
                     No events yet
+                  </p>
+                </div>
+              )}
+              {loadingEvents && (
+                <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <p
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      color: "rgba(245,247,249,0.18)",
+                      letterSpacing: "0.2em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Loading events…
                   </p>
                 </div>
               )}
