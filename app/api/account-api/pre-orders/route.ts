@@ -46,8 +46,15 @@ export async function GET(req: NextRequest) {
       }
     }
   `,
-    { query: `email:${email} tag:reserve` },
+    { query: `email:'${email}' AND tag:reserve` },
   );
+
+  if (data.errors) {
+    console.error(
+      "Shopify draftOrders query error:",
+      JSON.stringify(data.errors, null, 2),
+    );
+  }
 
   const edges = data?.data?.draftOrders?.edges ?? [];
   const draftOrders = edges.map(({ node }: any) => ({
