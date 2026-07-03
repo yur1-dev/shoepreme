@@ -247,6 +247,7 @@ function AppealModal({
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/account";
+  const isCheckout = searchParams.get("checkout") === "1";
   const error = searchParams.get("error");
   const disableReason = searchParams.get("reason");
   const prefillEmail = searchParams.get("email") || "";
@@ -270,6 +271,26 @@ function LoginForm() {
         gap: "20px",
       }}
     >
+
+      {isCheckout && (
+        <div style={{
+          background: "rgba(232,168,48,0.07)",
+          border: "1px solid rgba(232,168,48,0.22)",
+          borderRadius: 10,
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e8a830" strokeWidth="2" strokeLinecap="round">
+            <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+          </svg>
+          <p style={{ fontFamily: "monospace", fontSize: 10, color: "#e8a830", letterSpacing: "0.05em", margin: 0, lineHeight: 1.5 }}>
+            Sign in to complete your purchase. Your cart is saved.
+          </p>
+        </div>
+      )}
+
       {error === "AccountDisabled" && (
         <div
           style={{
@@ -405,7 +426,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/account");
+      const params = new URLSearchParams(window.location.search);
+      const isCheckout = params.get("checkout") === "1";
+      router.replace(isCheckout ? "/?openCart=1" : "/account");
     }
   }, [status, router]);
 
