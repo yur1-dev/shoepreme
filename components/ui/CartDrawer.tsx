@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 
 export default function CartDrawer() {
@@ -176,36 +177,48 @@ export default function CartDrawer() {
                       border: "1px solid rgba(255,255,255,0.06)",
                     }}
                   >
-                    {img && (
-                      <img
-                        src={img.url}
-                        alt={img.altText ?? ""}
-                        style={{
-                          width: "72px",
-                          height: "72px",
-                          objectFit: "cover",
-                          borderRadius: "8px",
-                          background: "#1a2332",
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
+                    <Link
+                      href={`/products/${line.merchandise.product.handle}`}
+                      onClick={closeCart}
+                      style={{ flexShrink: 0, display: "block" }}
+                    >
+                      {img && (
+                        <img
+                          src={img.url}
+                          alt={img.altText ?? ""}
+                          style={{
+                            width: "72px",
+                            height: "72px",
+                            objectFit: "cover",
+                            borderRadius: "8px",
+                            background: "#1a2332",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                    </Link>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        style={{
-                          fontFamily: "Bebas Neue, sans-serif",
-                          fontSize: "1rem",
-                          letterSpacing: "0.05em",
-                          color: "#f5f7f9",
-                          lineHeight: 1.2,
-                          marginBottom: "4px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
+                      <Link
+                        href={`/products/${line.merchandise.product.handle}`}
+                        onClick={closeCart}
+                        style={{ textDecoration: "none" }}
                       >
-                        {line.merchandise.product.title}
-                      </p>
+                        <p
+                          style={{
+                            fontFamily: "Bebas Neue, sans-serif",
+                            fontSize: "1rem",
+                            letterSpacing: "0.05em",
+                            color: "#f5f7f9",
+                            lineHeight: 1.2,
+                            marginBottom: "4px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {line.merchandise.product.title}
+                        </p>
+                      </Link>
                       {line.merchandise.selectedOptions.map((opt) => (
                         <p
                           key={opt.name}
