@@ -741,7 +741,8 @@ export async function createProduct(input: {
   if (!product) return { success: false, error: "Product creation failed" };
 
   await publishToOnlineStore(product.id);
-  if (input.productType) await addProductToCollection(product.id, input.productType);
+  if (input.productType)
+    await addProductToCollection(product.id, input.productType);
 
   const locationId = await getPrimaryLocationId();
 
@@ -1401,7 +1402,7 @@ export async function publishToOnlineStore(productId: string) {
           userErrors { field message }
         }
       }`,
-      { id: productId, input: [{ publicationId: node.id }] }
+      { id: productId, input: [{ publicationId: node.id }] },
     );
   }
 
@@ -1462,18 +1463,22 @@ export async function getCollections() {
   return data?.data?.collections?.edges?.map((e: any) => e.node) ?? [];
 }
 const CATEGORY_COLLECTION_MAP: Record<string, string> = {
-  "Men": "gid://shopify/Collection/339158302915",
-  "Women": "gid://shopify/Collection/339158335683",
+  Men: "gid://shopify/Collection/339158302915",
+  Women: "gid://shopify/Collection/339158335683",
   "Basketball & Court": "gid://shopify/Collection/338953076931",
-  "Running": "gid://shopify/Collection/338984304835",
-  "Trail": "gid://shopify/Collection/338984337603",
-  "Sneakers": "gid://shopify/Collection/339403899075",
+  Running: "gid://shopify/Collection/338984304835",
+  Trail: "gid://shopify/Collection/338984337603",
+  Sneakers: "gid://shopify/Collection/339403899075",
   "In-Store": "gid://shopify/Collection/339158237379",
-  "Sale": "gid://shopify/Collection/339402653891",
+  Sale: "gid://shopify/Collection/339402653891",
   "New In Stock": "gid://shopify/Collection/341517861059",
+  "Pre-order": "gid://shopify/Collection/643383328963",
 };
 
-export async function addProductToCollection(productId: string, productType: string) {
+export async function addProductToCollection(
+  productId: string,
+  productType: string,
+) {
   const collectionId = CATEGORY_COLLECTION_MAP[productType];
   if (!collectionId) return { success: false, error: "No matching collection" };
 

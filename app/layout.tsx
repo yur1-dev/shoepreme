@@ -3,9 +3,24 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Shoepreme PH — Authentic Running & Basketball Shoes",
+  metadataBase: new URL("https://shoepreme-k.com"),
+  title: {
+    default: "Shoepreme PH — Authentic Running & Basketball Shoes",
+    template: "%s | Shoepreme PH",
+  },
   description:
     "Authentic Nike, Adidas, ASICS, Brooks & Hoka — sourced direct from Japan, Taiwan, US, and HK. Based in Koronadal City. 100% legit.",
+  keywords: [
+    "Nike Philippines",
+    "Adidas Koronadal",
+    "authentic running shoes",
+    "ASICS PH",
+    "sneakers General Santos",
+  ],
+  robots: { index: true, follow: true },
+  icons: {
+    icon: "/favicon.ico",
+  },
   openGraph: {
     title: "Shoepreme PH",
     description:
@@ -13,6 +28,22 @@ export const metadata: Metadata = {
     url: "https://shoepreme-k.com",
     siteName: "Shoepreme PH",
     type: "website",
+    locale: "en_PH",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Shoepreme PH",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shoepreme PH",
+    description:
+      "Authentic performance shoes, direct from Japan, Taiwan & the US.",
+    images: ["/og-image.jpg"],
   },
 };
 

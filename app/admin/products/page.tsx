@@ -15,6 +15,7 @@ import {
   TextInput,
   TextArea,
 } from "@/lib/admin-ui";
+import { useLayoutMode } from "@/lib/use-layout-mode";
 
 function formatPrice(amount: string) {
   return new Intl.NumberFormat("en-PH", {
@@ -70,7 +71,8 @@ function emptyDraft(): DraftProduct {
     stockEdits: {},
     newImageFiles: [],
   };
-}function draftFromProduct(product: any): DraftProduct {
+}
+function draftFromProduct(product: any): DraftProduct {
   const firstVariant = product.variants?.edges?.[0]?.node;
   const sizes = (product.variants?.edges ?? [])
     .map(
@@ -128,7 +130,9 @@ function NewProductImageDropzone({
 
   function handleFiles(fileList: FileList | null) {
     if (!fileList) return;
-    const newFiles = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    const newFiles = Array.from(fileList).filter((f) =>
+      f.type.startsWith("image/"),
+    );
     if (newFiles.length > 0) {
       onFilesChange([...files, ...newFiles]);
     }
@@ -155,7 +159,9 @@ function NewProductImageDropzone({
         style={{
           border: `1.5px dashed ${dragOver ? "rgba(232,168,48,0.6)" : "rgba(255,255,255,0.15)"}`,
           borderRadius: 12,
-          background: dragOver ? "rgba(232,168,48,0.05)" : "rgba(255,255,255,0.02)",
+          background: dragOver
+            ? "rgba(232,168,48,0.05)"
+            : "rgba(255,255,255,0.02)",
           padding: "24px 16px",
           textAlign: "center",
           cursor: "pointer",
@@ -272,9 +278,6 @@ function NewProductImageDropzone({
   );
 }
 
-// Safely parse a fetch Response as JSON. If the server returned something
-// that isn't JSON (an HTML 404/500 page, an empty body, etc.) this returns a
-// { success: false, error } shape instead of throwing "Unexpected token '<'".
 async function safeJson(res: Response): Promise<any> {
   const text = await res.text();
   try {
@@ -289,7 +292,6 @@ async function safeJson(res: Response): Promise<any> {
     };
   }
 }
-// ─── Product Modal ─────────────────────────────────────────────────────────
 
 function ProductModal({
   modal,
@@ -304,6 +306,7 @@ function ProductModal({
   onSizeAdded: (productId: string) => void;
   showToast: (msg: string, ok?: boolean) => void;
 }) {
+  const { isMobile } = useLayoutMode();
   const [draft, setDraft] = useState<DraftProduct>(modal.draft);
   const [saving, setSaving] = useState(false);
   const sizeRef = useRef<HTMLInputElement>(null);
@@ -320,15 +323,14 @@ function ProductModal({
     "Running",
     "Trail",
     "Sneakers",
+    "Pre-order",
   ];
   const [useCustomCategory, setUseCustomCategory] = useState(
-    () => !!modal.draft.productType && !CATEGORY_OPTIONS.includes(modal.draft.productType),
+    () =>
+      !!modal.draft.productType &&
+      !CATEGORY_OPTIONS.includes(modal.draft.productType),
   );
 
-  // Resolve the *real* Media id for the featured image by matching URLs — the
-  // product's featuredImage.id is an Image id, not a Media id, and the two
-  // don't line up, which was silently breaking "replace" (it always missed
-  // the old media, so it just added a new one instead of swapping it out).
   function resolveDefaultImage(p: any): { id?: string; url?: string } | null {
     if (!p) return null;
     const edges = p.media?.edges ?? [];
@@ -337,7 +339,6 @@ function ProductModal({
       ? edges.find((e: any) => e.node?.image?.url === featuredUrl)
       : null;
     if (match) return { id: match.node.id, url: match.node.image.url };
-    // Fall back to the first edge that actually has an image (skip videos/3D models)
     const firstImage = edges.find((e: any) => e.node?.image?.url);
     if (firstImage) {
       return { id: firstImage.node.id, url: firstImage.node.image.url };
@@ -347,27 +348,23 @@ function ProductModal({
       : null;
   }
 
-  const [selectedImage, setSelectedImage] = useState<{ id?: string; url?: string } | null>(
-    () => resolveDefaultImage(product),
-  );
+  const [selectedImage, setSelectedImage] = useState<{
+    id?: string;
+    url?: string;
+  } | null>(() => resolveDefaultImage(product));
 
-  // The media id that was the product's storefront/list thumbnail when the
-  // modal opened. Used at Save time to detect "user just clicked a different
-  // existing thumbnail and hit Save" (no replace/upload involved) so we know
-  // to point the product's featured image at that selection.
   const originalFeaturedId = useMemo(
     () => resolveDefaultImage(product)?.id,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [product?.id],
   );
 
-  // Image changes are staged locally and only sent to the server when the
-  // user clicks "Save Changes" — matching how every other field in this
-  // modal behaves, instead of firing off a network request the instant a
-  // file is picked.
-  const [pendingReplace, setPendingReplace] = useState<
-    { mediaId: string; file: File; previewUrl: string; wasFeatured: boolean } | null
-  >(null);
+  const [pendingReplace, setPendingReplace] = useState<{
+    mediaId: string;
+    file: File;
+    previewUrl: string;
+    wasFeatured: boolean;
+  } | null>(null);
   const [pendingAdds, setPendingAdds] = useState<
     { key: string; file: File; previewUrl: string }[]
   >([]);
@@ -394,7 +391,6 @@ function ProductModal({
       }
       showToast("Image removed ✓");
 
-      // Don't leave a just-deleted image queued as a replace target or selected
       if (pendingReplace?.mediaId === mediaId) {
         URL.revokeObjectURL(pendingReplace.previewUrl);
         setPendingReplace(null);
@@ -426,7 +422,6 @@ function ProductModal({
   useEffect(() => {
     if (product) {
       setSelectedImage((prev) => {
-        // Keep selection if it still exists among current media, otherwise fall back to featured image
         const stillExists = (product.media?.edges ?? []).some(
           (e: any) => e.node?.id === prev?.id,
         );
@@ -439,7 +434,9 @@ function ProductModal({
 
   useEffect(() => {
     if (!product) return;
-    const ids = new Set((product.variants?.edges ?? []).map((e: any) => e.node.id));
+    const ids = new Set(
+      (product.variants?.edges ?? []).map((e: any) => e.node.id),
+    );
     if (draft.variantId && ids.has(draft.variantId)) return;
     const fallback = product.variants?.edges?.[0]?.node?.id;
     if (fallback) setDraft((p) => ({ ...p, variantId: fallback }));
@@ -468,11 +465,13 @@ function ProductModal({
     }
     if (pendingReplace) URL.revokeObjectURL(pendingReplace.previewUrl);
     const previewUrl = URL.createObjectURL(file);
-    // If the image being swapped out is the one currently used as the
-    // product's storefront/list thumbnail, flag it so the replacement
-    // explicitly takes over that spot too.
     const wasFeatured = selectedImage.url === product.featuredImage?.url;
-    setPendingReplace({ mediaId: selectedImage.id, file, previewUrl, wasFeatured });
+    setPendingReplace({
+      mediaId: selectedImage.id,
+      file,
+      previewUrl,
+      wasFeatured,
+    });
   }
 
   function undoReplaceImage() {
@@ -504,8 +503,6 @@ function ProductModal({
       fd.append("file", pendingReplace.file);
       fd.append("productId", productId);
       fd.append("oldMediaId", pendingReplace.mediaId);
-      // Hint for the endpoint, in case it needs telling explicitly that the
-      // image being swapped out was the storefront/list thumbnail
       if (pendingReplace.wasFeatured) fd.append("setAsFeatured", "true");
       const res = await fetch("/api/admin/upload-product-image", {
         method: "POST",
@@ -515,9 +512,6 @@ function ProductModal({
       if (!data.success) {
         failed++;
       } else if (pendingReplace.wasFeatured && data.media?.id) {
-        // Fallback: explicitly re-point the featured image if the upload
-        // endpoint didn't already handle it, so the products list thumbnail
-        // stays in sync with what was actually replaced.
         try {
           const fRes = await fetch("/api/admin/set-featured-image", {
             method: "POST",
@@ -526,7 +520,7 @@ function ProductModal({
           });
           await safeJson(fRes);
         } catch {
-          // Non-fatal — the image itself still saved fine either way
+          // Non-fatal
         }
       }
       URL.revokeObjectURL(pendingReplace.previewUrl);
@@ -548,9 +542,6 @@ function ProductModal({
     return failed;
   }
 
-  // If the user simply clicked a different *existing* thumbnail (no file
-  // picked, nothing queued to replace it) and then hits Save, that
-  // selection should become the product's storefront/list image.
   async function flushFeaturedSelection(productId: string) {
     const replacingSelected = pendingReplace?.mediaId === selectedImage?.id;
     if (
@@ -574,9 +565,12 @@ function ProductModal({
       showToast("Name is required", false);
       return;
     }
-    // Safety net: if user typed a size but never clicked "Add", include it anyway
     let effectiveSizes = draft.sizes;
-    if (!isEdit && draft.sizeInput.trim() && !draft.sizes.includes(draft.sizeInput.trim())) {
+    if (
+      !isEdit &&
+      draft.sizeInput.trim() &&
+      !draft.sizes.includes(draft.sizeInput.trim())
+    ) {
       effectiveSizes = [...draft.sizes, draft.sizeInput.trim()];
     }
     if (!draft.price || isNaN(parseFloat(draft.price))) {
@@ -606,13 +600,6 @@ function ProductModal({
           return;
         }
 
-        // The variant id captured when the modal opened can go stale — e.g.
-        // adding the product's first size replaces its original "Default
-        // Title" variant with a new one, so draft.variantId now points at a
-        // variant that no longer exists. Only send the base-price update if
-        // that id is still present on the (always-fresh) product prop;
-        // otherwise per-size prices are already covered by the stock loop
-        // below, so it's safe to just skip this call.
         const currentVariantIds = new Set(
           (product.variants?.edges ?? []).map((e: any) => e.node.id),
         );
@@ -632,8 +619,7 @@ function ProductModal({
             return;
           }
         }
-        
-     // Save stock edits
+
         const stockEntries = Object.entries(draft.stockEdits ?? {});
         const updatedStockEdits = { ...draft.stockEdits };
         for (const [size, entry] of stockEntries) {
@@ -651,11 +637,13 @@ function ProductModal({
               });
               const invData = await safeJson(invRes);
               if (invData.success) {
-                // Sync current so next save computes correct delta
                 updatedStockEdits[size] = { ...entry, current: newQty };
               } else {
                 setDraft((p) => ({ ...p, stockEdits: updatedStockEdits }));
-                showToast(`Stock update failed for ${size}: ${invData.error}`, false);
+                showToast(
+                  `Stock update failed for ${size}: ${invData.error}`,
+                  false,
+                );
               }
             }
           }
@@ -672,13 +660,10 @@ function ProductModal({
           }
         }
 
-        // Apply any staged image replace/add now that the user has hit Save
-        // (deletes already happen immediately when the × is clicked)
         let imageFailures = 0;
         if (pendingReplace || pendingAdds.length > 0) {
           imageFailures += await flushPendingImageChanges(product.id);
         }
-        // Apply a plain "selected a different existing image" change too
         imageFailures += await flushFeaturedSelection(product.id);
 
         if (imageFailures > 0) {
@@ -711,8 +696,11 @@ function ProductModal({
           return;
         }
 
-        // Upload all images sequentially if any were selected
-        if (draft.newImageFiles && draft.newImageFiles.length > 0 && data.product?.id) {
+        if (
+          draft.newImageFiles &&
+          draft.newImageFiles.length > 0 &&
+          data.product?.id
+        ) {
           let failedCount = 0;
           for (const file of draft.newImageFiles) {
             const fd = new FormData();
@@ -726,7 +714,10 @@ function ProductModal({
             if (!imgData.success) failedCount++;
           }
           if (failedCount > 0) {
-            showToast(`Product created, but ${failedCount} image(s) failed to upload`, false);
+            showToast(
+              `Product created, but ${failedCount} image(s) failed to upload`,
+              false,
+            );
             onSaved();
             onClose();
             return;
@@ -744,8 +735,7 @@ function ProductModal({
       setSaving(false);
     }
   }
-  
-  
+
   return (
     <div
       onClick={(e) => {
@@ -760,17 +750,18 @@ function ProductModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 20,
+        padding: isMobile ? 0 : 20,
       }}
     >
       <div
         style={{
           background: "#0f131c",
-          border: "1px solid rgba(255,255,255,0.09)",
-          borderRadius: 18,
+          border: isMobile ? "none" : "1px solid rgba(255,255,255,0.09)",
+          borderRadius: isMobile ? 0 : 18,
           width: "100%",
           maxWidth: 620,
-          maxHeight: "90vh",
+          maxHeight: isMobile ? "100vh" : "90vh",
+          height: isMobile ? "100vh" : "auto",
           overflowY: "auto",
           boxShadow: "0 40px 100px rgba(0,0,0,0.85)",
         }}
@@ -781,13 +772,13 @@ function ProductModal({
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "22px 28px 18px",
+            padding: isMobile ? "18px 20px 16px" : "22px 28px 18px",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
             position: "sticky",
             top: 0,
             background: "#0f131c",
             zIndex: 1,
-            borderRadius: "18px 18px 0 0",
+            borderRadius: isMobile ? 0 : "18px 18px 0 0",
           }}
         >
           <div>
@@ -840,7 +831,7 @@ function ProductModal({
         {/* Body */}
         <div
           style={{
-            padding: "24px 28px",
+            padding: isMobile ? "20px" : "24px 28px",
             display: "flex",
             flexDirection: "column",
             gap: 22,
@@ -870,7 +861,9 @@ function ProductModal({
                   letterSpacing: "0.05em",
                 }}
               >
-                Click a thumbnail to make it the product's list image on Save · × removes an image right away, everything else applies when you Save
+                Click a thumbnail to make it the product's list image on Save ·
+                × removes an image right away, everything else applies when you
+                Save
               </p>
               <div
                 style={{
@@ -888,7 +881,10 @@ function ProductModal({
                     ? pendingReplace!.previewUrl
                     : e.node.image.url;
                   return (
-                    <div key={i} style={{ position: "relative", flexShrink: 0 }}>
+                    <div
+                      key={i}
+                      style={{ position: "relative", flexShrink: 0 }}
+                    >
                       <button
                         onClick={() =>
                           !isDeleting &&
@@ -922,7 +918,11 @@ function ProductModal({
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
-                            opacity: isDeleting ? 0.35 : isBeingReplaced ? 0.85 : 1,
+                            opacity: isDeleting
+                              ? 0.35
+                              : isBeingReplaced
+                                ? 0.85
+                                : 1,
                           }}
                         />
                       </button>
@@ -999,7 +999,9 @@ function ProductModal({
                             borderRadius: 4,
                             background: "rgba(0,0,0,0.7)",
                             border: "1px solid rgba(255,255,255,0.2)",
-                            color: isDeleting ? "rgba(248,113,113,0.4)" : "#f87171",
+                            color: isDeleting
+                              ? "rgba(248,113,113,0.4)"
+                              : "#f87171",
                             fontSize: 11,
                             cursor: isDeleting ? "not-allowed" : "pointer",
                             display: "flex",
@@ -1108,7 +1110,14 @@ function ProductModal({
                 </label>
               </div>
               <FieldLabel>Replace Selected Image</FieldLabel>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  flexWrap: isMobile ? "wrap" : "nowrap",
+                }}
+              >
                 <div
                   style={{
                     width: 84,
@@ -1197,18 +1206,21 @@ function ProductModal({
                     style={{
                       fontFamily: "monospace",
                       fontSize: 8,
-                      color: pendingReplace?.mediaId === selectedImage?.id
-                        ? "#e8a830"
-                        : selectedImage?.id && selectedImage.id !== originalFeaturedId
+                      color:
+                        pendingReplace?.mediaId === selectedImage?.id
                           ? "#e8a830"
-                          : "rgba(240,244,248,0.2)",
+                          : selectedImage?.id &&
+                              selectedImage.id !== originalFeaturedId
+                            ? "#e8a830"
+                            : "rgba(240,244,248,0.2)",
                       margin: "6px 0 0",
                       letterSpacing: "0.06em",
                     }}
                   >
                     {pendingReplace?.mediaId === selectedImage?.id
                       ? "Pending — will apply when you Save Changes"
-                      : selectedImage?.id && selectedImage.id !== originalFeaturedId
+                      : selectedImage?.id &&
+                          selectedImage.id !== originalFeaturedId
                         ? "Pending — this will become the list/storefront image on Save"
                         : "JPG, PNG, WEBP · max ~4 MB"}
                   </p>
@@ -1224,7 +1236,7 @@ function ProductModal({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                   gap: 14,
                 }}
               >
@@ -1271,7 +1283,11 @@ function ProductModal({
 
           {/* Name + Category */}
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 14,
+            }}
           >
             <div>
               <FieldLabel>Name *</FieldLabel>
@@ -1311,14 +1327,19 @@ function ProductModal({
                     (e.currentTarget.style.borderColor = "rgba(232,168,48,0.4)")
                   }
                   onBlur={(e) =>
-                    (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")
+                    (e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.1)")
                   }
                 >
                   <option value="" style={{ background: "#0f131c" }}>
                     Select category…
                   </option>
                   {CATEGORY_OPTIONS.map((cat) => (
-                    <option key={cat} value={cat} style={{ background: "#0f131c" }}>
+                    <option
+                      key={cat}
+                      value={cat}
+                      style={{ background: "#0f131c" }}
+                    >
                       {cat}
                     </option>
                   ))}
@@ -1386,7 +1407,11 @@ function ProductModal({
 
           {/* Price + Visibility */}
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 14,
+            }}
           >
             <div>
               <FieldLabel>Price (₱) *</FieldLabel>
@@ -1585,7 +1610,9 @@ function ProductModal({
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 100px 80px auto",
+                    gridTemplateColumns: isMobile
+                      ? "1fr 1fr"
+                      : "1fr 100px 80px auto",
                     gap: 8,
                     alignItems: "center",
                   }}
@@ -1697,14 +1724,14 @@ function ProductModal({
                       showToast("Size added ✓");
                       upd("sizeInput", "");
 
-                      // Optimistically patch local state instead of waiting on Shopify's read lag
                       setDraft((p) => ({
                         ...p,
                         sizes: [...p.sizes, size],
                         stockEdits: {
                           ...p.stockEdits,
                           [size]: {
-                            inventoryItemId: data.variant?.inventoryItem?.id ?? "",
+                            inventoryItemId:
+                              data.variant?.inventoryItem?.id ?? "",
                             current: qty,
                             newQty: String(qty),
                             price,
@@ -1979,12 +2006,12 @@ function ProductModal({
             display: "flex",
             gap: 10,
             justifyContent: "flex-end",
-            padding: "16px 28px 24px",
+            padding: isMobile ? "14px 20px 20px" : "16px 28px 24px",
             borderTop: "1px solid rgba(255,255,255,0.06)",
             position: "sticky",
             bottom: 0,
             background: "#0f131c",
-            borderRadius: "0 0 18px 18px",
+            borderRadius: isMobile ? 0 : "0 0 18px 18px",
           }}
         >
           <ActionButton onClick={onClose} variant="ghost">
@@ -1999,10 +2026,14 @@ function ProductModal({
   );
 }
 
-
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function AdminProductsPage() {
+  const { isMobile, isTablet } = useLayoutMode();
+  const gridColsDesktop = "60px 1fr 140px 130px 130px 120px";
+  const gridColsMobile = "50px 1fr 90px 70px";
+  const gridCols = isMobile ? gridColsMobile : gridColsDesktop;
+
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalState>(null);
@@ -2012,32 +2043,35 @@ export default function AdminProductsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
-   const fetchProducts = useCallback(async (delay?: number) => {
-     if (delay) await new Promise((r) => setTimeout(r, delay));
-     setLoading(true);
-     const res = await fetch("/api/admin/products", { cache: "no-store" });
-     const data = await res.json();
-     setProducts(data);
-     setLoading(false);
-     return data;
-   }, []);
+  const fetchProducts = useCallback(async (delay?: number) => {
+    if (delay) await new Promise((r) => setTimeout(r, delay));
+    setLoading(true);
+    const res = await fetch("/api/admin/products", { cache: "no-store" });
+    const data = await res.json();
+    setProducts(data);
+    setLoading(false);
+    return data;
+  }, []);
 
-   const fetchProductsUntilPresent = useCallback(
-     async (newProductId?: string, attempts = 6) => {
-       for (let i = 0; i < attempts; i++) {
-         const data = await fetchProducts();
-         if (!newProductId) return;
-         if (data.some((p: any) => p.id === newProductId)) return;
-         await new Promise((r) => setTimeout(r, 1000));
-       }
-     },
-     [fetchProducts],
-   );
+  const fetchProductsUntilPresent = useCallback(
+    async (newProductId?: string, attempts = 6) => {
+      for (let i = 0; i < attempts; i++) {
+        const data = await fetchProducts();
+        if (!newProductId) return;
+        if (data.some((p: any) => p.id === newProductId)) return;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    },
+    [fetchProducts],
+  );
 
   const refreshModalProduct = useCallback(async (productId: string) => {
-    const res = await fetch(`/api/admin/product?id=${encodeURIComponent(productId)}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `/api/admin/product?id=${encodeURIComponent(productId)}`,
+      {
+        cache: "no-store",
+      },
+    );
     const updated = await res.json();
     console.log("refreshModalProduct received:", updated);
     if (updated && updated.id) {
@@ -2056,7 +2090,11 @@ export default function AdminProductsPage() {
         return {
           mode: "edit",
           product: updated,
-          draft: { ...freshDraft, sizes: mergedSizes, stockEdits: mergedStockEdits },
+          draft: {
+            ...freshDraft,
+            sizes: mergedSizes,
+            stockEdits: mergedStockEdits,
+          },
         };
       });
       setProducts((prev) =>
@@ -2064,7 +2102,7 @@ export default function AdminProductsPage() {
       );
     }
   }, []);
- 
+
   async function handleDelete(productId: string) {
     setDeletingId(productId);
     const res = await fetch("/api/admin/delete-product", {
@@ -2107,14 +2145,16 @@ export default function AdminProductsPage() {
   }, [products, filter, search]);
 
   return (
-    <div style={{ padding: "32px 36px 60px" }}>
+    <div style={{ padding: isMobile ? "20px 16px 40px" : "32px 36px 60px" }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
+            alignItems: isMobile ? "flex-start" : "flex-end",
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? 12 : 0,
             marginBottom: 28,
           }}
         >
@@ -2135,7 +2175,7 @@ export default function AdminProductsPage() {
             <h1
               style={{
                 fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "2.4rem",
+                fontSize: isMobile ? "1.9rem" : "2.4rem",
                 letterSpacing: "0.04em",
                 color: "#f0f4f8",
                 margin: 0,
@@ -2144,10 +2184,16 @@ export default function AdminProductsPage() {
               Products
             </h1>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-           <ActionButton onClick={() => fetchProducts()} variant="ghost">
-            ↻ Refresh
-          </ActionButton>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
+            <ActionButton onClick={() => fetchProducts()} variant="ghost">
+              ↻ Refresh
+            </ActionButton>
             <ActionButton
               onClick={() => setModal({ mode: "new", draft: emptyDraft() })}
               variant="gold"
@@ -2161,7 +2207,7 @@ export default function AdminProductsPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
             gap: 12,
             marginBottom: 28,
           }}
@@ -2239,209 +2285,251 @@ export default function AdminProductsPage() {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "60px 1fr 140px 130px 140px 125px",
-              padding: "12px 22px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              fontFamily: "monospace",
-              fontSize: 8,
-              fontWeight: 900,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "rgba(240,244,248,0.28)",
-            }}
-          >
-            <span />
-            <span>Product</span>
-            <span style={{ textAlign: "right" }}>Price</span>
-            <span style={{ textAlign: "right" }}>Inventory</span>
-            <span style={{ textAlign: "right" }}>Status</span>
-            <span />
-          </div>
+          <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
+            <div style={{ minWidth: isMobile ? 420 : "auto" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: gridCols,
+                  padding: isMobile ? "12px 16px" : "12px 22px",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  fontFamily: "monospace",
+                  fontSize: 8,
+                  fontWeight: 900,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "rgba(240,244,248,0.28)",
+                }}
+              >
+                <span />
+                <span>Product</span>
+                <span style={{ textAlign: "right" }}>Price</span>
+                {!isMobile && (
+                  <span style={{ textAlign: "right" }}>Inventory</span>
+                )}
+                {!isMobile && (
+                  <span style={{ textAlign: "right" }}>Status</span>
+                )}
+                {!isMobile && <span />}
+              </div>
 
-          {loading && <Spinner />}
-          {!loading && filtered.length === 0 && (
-            <EmptyState
-              label={
-                search
-                  ? `No products matching "${search}"`
-                  : "No products found"
-              }
-            />
-          )}
-
-          {!loading &&
-            filtered.map((product) => {
-              const firstVariant = product.variants?.edges?.[0]?.node;
-              const oos = product.totalInventory === 0;
-
-              return (
-                <div
-                  key={product.id}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(255,255,255,0.022)")
+              {loading && <Spinner />}
+              {!loading && filtered.length === 0 && (
+                <EmptyState
+                  label={
+                    search
+                      ? `No products matching "${search}"`
+                      : "No products found"
                   }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "60px 1fr 140px 130px 130px 120px",
-                    padding: "13px 22px",
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
-                    alignItems: "center",
-                    transition: "background 0.12s",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 9,
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {product.featuredImage?.url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={product.featuredImage.url}
-                        alt={product.title}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    )}
-                  </div>
+                />
+              )}
 
-                  <div>
-                    <p
-                      style={{
-                        fontFamily: "Poppins, sans-serif",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "#f0f4f8",
-                        margin: "0 0 2px",
-                      }}
-                    >
-                      {product.title}
-                    </p>
-                    <p
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 9,
-                        color: "rgba(240,244,248,0.3)",
-                        margin: 0,
-                      }}
-                    >
-                      {product.collections?.edges?.[0]?.node?.title || "—"} ·{" "}
-                      {product.variants?.edges?.length ?? 1} size
-                      {(product.variants?.edges?.length ?? 1) !== 1 ? "s" : ""}
-                    </p>
-                  </div>
+              {!loading &&
+                filtered.map((product) => {
+                  const firstVariant = product.variants?.edges?.[0]?.node;
+                  const oos = product.totalInventory === 0;
 
-                  <span
-                    style={{
-                      fontFamily: "Bebas Neue, sans-serif",
-                      fontSize: "1.05rem",
-                      color: "#f0f4f8",
-                      textAlign: "right",
-                    }}
-                  >
-                    {firstVariant ? formatPrice(firstVariant.price) : "—"}
-                  </span>
-
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: 11,
-                      textAlign: "right",
-                      color: oos ? "#f87171" : "rgba(240,244,248,0.5)",
-                      fontWeight: oos ? 700 : 400,
-                    }}
-                  >
-                    {oos ? "Out of stock" : product.totalInventory}
-                  </span>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <StatusPill label={product.status} />
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                    <ActionButton
+                  return (
+                    <div
+                      key={product.id}
                       onClick={() =>
+                        isMobile &&
                         setModal({
                           mode: "edit",
                           product,
                           draft: draftFromProduct(product),
                         })
                       }
-                      variant="ghost"
-                      small
-                    >
-                      Edit
-                    </ActionButton>
-                    <button
-                      onClick={() => setDeleteTarget(product)}
-                      disabled={deletingId === product.id}
-                      title="Delete product"
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "rgba(255,255,255,0.022)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        background: "rgba(248,113,113,0.08)",
-                        border: "1px solid rgba(248,113,113,0.18)",
-                        color: deletingId === product.id ? "rgba(248,113,113,0.3)" : "#f87171",
-                        cursor: deletingId === product.id ? "not-allowed" : "pointer",
-                        display: "flex",
+                        display: "grid",
+                        gridTemplateColumns: gridCols,
+                        padding: isMobile ? "13px 16px" : "13px 22px",
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
                         alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
+                        transition: "background 0.12s",
+                        cursor: isMobile ? "pointer" : "default",
                       }}
                     >
-                      <svg 
-                        width="12" 
-                        height="12" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
+                      <div
+                        style={{
+                          width: isMobile ? 38 : 46,
+                          height: isMobile ? 38 : 46,
+                          borderRadius: 9,
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          overflow: "hidden",
+                        }}
                       >
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                        {product.featuredImage?.url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={product.featuredImage.url}
+                            alt={product.title}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        )}
+                      </div>
+
+                      <div>
+                        <p
+                          style={{
+                            fontFamily: "Poppins, sans-serif",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#f0f4f8",
+                            margin: "0 0 2px",
+                          }}
+                        >
+                          {product.title}
+                        </p>
+                        <p
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 9,
+                            color: oos ? "#f87171" : "rgba(240,244,248,0.3)",
+                            margin: 0,
+                          }}
+                        >
+                          {isMobile
+                            ? oos
+                              ? "Out of stock"
+                              : `${product.totalInventory} in stock`
+                            : `${product.collections?.edges?.[0]?.node?.title || "—"} · ${product.variants?.edges?.length ?? 1} size${(product.variants?.edges?.length ?? 1) !== 1 ? "s" : ""}`}
+                        </p>
+                      </div>
+
+                      <span
+                        style={{
+                          fontFamily: "Bebas Neue, sans-serif",
+                          fontSize: "1.05rem",
+                          color: "#f0f4f8",
+                          textAlign: "right",
+                        }}
+                      >
+                        {firstVariant ? formatPrice(firstVariant.price) : "—"}
+                      </span>
+
+                      {!isMobile && (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 11,
+                            textAlign: "right",
+                            color: oos ? "#f87171" : "rgba(240,244,248,0.5)",
+                            fontWeight: oos ? 700 : 400,
+                          }}
+                        >
+                          {oos ? "Out of stock" : product.totalInventory}
+                        </span>
+                      )}
+
+                      {!isMobile && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                          }}
+                        >
+                          <StatusPill label={product.status} />
+                        </div>
+                      )}
+
+                      {!isMobile && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 6,
+                          }}
+                        >
+                          <ActionButton
+                            onClick={() =>
+                              setModal({
+                                mode: "edit",
+                                product,
+                                draft: draftFromProduct(product),
+                              })
+                            }
+                            variant="ghost"
+                            small
+                          >
+                            Edit
+                          </ActionButton>
+                          <button
+                            onClick={() => setDeleteTarget(product)}
+                            disabled={deletingId === product.id}
+                            title="Delete product"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 6,
+                              background: "rgba(248,113,113,0.08)",
+                              border: "1px solid rgba(248,113,113,0.18)",
+                              color:
+                                deletingId === product.id
+                                  ? "rgba(248,113,113,0.3)"
+                                  : "#f87171",
+                              cursor:
+                                deletingId === product.id
+                                  ? "not-allowed"
+                                  : "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
         </div>
       </div>
 
-        {modal && (
-      <ProductModal
-        modal={modal}
-        onClose={() => setModal(null)}
-        onSaved={(newProductId?: string) =>
-          newProductId
-            ? fetchProductsUntilPresent(newProductId)
-            : fetchProducts()
-        }
-        onSizeAdded={refreshModalProduct}
-        showToast={showToast}
-      />
-    )}
+      {modal && (
+        <ProductModal
+          modal={modal}
+          onClose={() => setModal(null)}
+          onSaved={(newProductId?: string) =>
+            newProductId
+              ? fetchProductsUntilPresent(newProductId)
+              : fetchProducts()
+          }
+          onSizeAdded={refreshModalProduct}
+          showToast={showToast}
+        />
+      )}
 
       {deleteTarget && (
         <>
@@ -2544,8 +2632,8 @@ export default function AdminProductsPage() {
                 padding: "12px 14px",
               }}
             >
-              This will permanently remove the product and all its variants
-              from your store. This cannot be undone.
+              This will permanently remove the product and all its variants from
+              your store. This cannot be undone.
             </p>
 
             <div style={{ display: "flex", gap: "10px" }}>
@@ -2564,7 +2652,8 @@ export default function AdminProductsPage() {
                   fontWeight: 700,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
-                  cursor: deletingId === deleteTarget.id ? "not-allowed" : "pointer",
+                  cursor:
+                    deletingId === deleteTarget.id ? "not-allowed" : "pointer",
                 }}
               >
                 Cancel
@@ -2584,11 +2673,14 @@ export default function AdminProductsPage() {
                   fontWeight: 800,
                   letterSpacing: "0.2em",
                   textTransform: "uppercase",
-                  cursor: deletingId === deleteTarget.id ? "not-allowed" : "pointer",
+                  cursor:
+                    deletingId === deleteTarget.id ? "not-allowed" : "pointer",
                   opacity: deletingId === deleteTarget.id ? 0.6 : 1,
                 }}
               >
-                {deletingId === deleteTarget.id ? "Deleting…" : "Delete Product"}
+                {deletingId === deleteTarget.id
+                  ? "Deleting…"
+                  : "Delete Product"}
               </button>
             </div>
           </div>

@@ -13,6 +13,15 @@ import {
   ActionButton,
   FieldLabel,
 } from "@/lib/admin-ui";
+import { useLayoutMode as useLayoutModeRaw } from "@/lib/use-layout-mode";
+
+function useLayoutMode() {
+  const layout = useLayoutModeRaw();
+  return {
+    ...layout,
+    mode: layout.isMobile ? "mobile" : layout.isTablet ? "tablet" : "desktop",
+  };
+}
 
 function formatPrice(amount: string, currency: string) {
   return new Intl.NumberFormat("en-PH", {
@@ -80,6 +89,8 @@ function CustomerDetailDrawer({
   const [resolving, setResolving] = useState(false);
   const [showDisableReason, setShowDisableReason] = useState(false);
   const [disableReasonInput, setDisableReasonInput] = useState("");
+  const { mode } = useLayoutMode();
+  const isMobile = mode === "mobile";
   const name =
     customer.displayName ||
     [customer.firstName, customer.lastName].filter(Boolean).join(" ") ||
@@ -249,8 +260,16 @@ function CustomerDetailDrawer({
                   stroke="#e8a830"
                   strokeWidth="2"
                 >
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M13.73 21a2 2 0 0 1-3.46 0"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span
                   style={{
@@ -516,9 +535,7 @@ function CustomerDetailDrawer({
               </p>
             )}
             {!loading && orders.length > 0 && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 8 }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {orders.map((order) => (
                   <div
                     key={order.id}
@@ -822,6 +839,12 @@ function CustomerDetailDrawer({
 }
 
 export default function AdminCustomersPage() {
+  const { mode } = useLayoutMode();
+  const isMobile = mode === "mobile";
+  const isTablet = mode === "tablet";
+  const gridColsDesktop = "1fr 130px 110px 110px 100px";
+  const gridColsMobile = "1fr 90px";
+  const gridCols = isMobile ? gridColsMobile : gridColsDesktop;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterVal>("ALL");
@@ -909,14 +932,16 @@ export default function AdminCustomersPage() {
   }, [customers, filter, search]);
 
   return (
-    <div style={{ padding: "32px 36px 60px" }}>
+    <div style={{ padding: isMobile ? "20px 16px 40px" : "32px 36px 60px" }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
+            alignItems: isMobile ? "flex-start" : "flex-end",
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? 12 : 0,
             marginBottom: 28,
           }}
         >
@@ -937,7 +962,7 @@ export default function AdminCustomersPage() {
             <h1
               style={{
                 fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "2.4rem",
+                fontSize: isMobile ? "1.9rem" : "2.4rem",
                 letterSpacing: "0.04em",
                 color: "#f0f4f8",
                 margin: 0,
@@ -955,7 +980,7 @@ export default function AdminCustomersPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)",
             gap: 12,
             marginBottom: 28,
           }}
@@ -1019,166 +1044,212 @@ export default function AdminCustomersPage() {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 130px 110px 110px 100px",
-              padding: "12px 22px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              fontFamily: "monospace",
-              fontSize: 8,
-              fontWeight: 900,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "rgba(240,244,248,0.28)",
-            }}
-          >
-            <span>Customer</span>
-            <span style={{ textAlign: "right" }}>Joined</span>
-            <span style={{ textAlign: "right" }}>Orders</span>
-            <span style={{ textAlign: "right" }}>Spent</span>
-            <span style={{ textAlign: "right" }}>Status</span>
-          </div>
+          <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
+            <div style={{ minWidth: isMobile ? 460 : "auto" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: gridCols,
+                  padding: isMobile ? "12px 16px" : "12px 22px",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  fontFamily: "monospace",
+                  fontSize: 8,
+                  fontWeight: 900,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "rgba(240,244,248,0.28)",
+                }}
+              >
+                <span>Customer</span>
+                {!isMobile && (
+                  <span style={{ textAlign: "right" }}>Joined</span>
+                )}
+                {!isMobile && (
+                  <span style={{ textAlign: "right" }}>Orders</span>
+                )}
+                {!isMobile && <span style={{ textAlign: "right" }}>Spent</span>}
+                <span style={{ textAlign: "right" }}>Status</span>
+              </div>
 
-          {loading && <Spinner />}
-          {!loading && filtered.length === 0 && (
-            <EmptyState
-              label={
-                search
-                  ? `No customers matching "${search}"`
-                  : "No customers found"
-              }
-            />
-          )}
-
-          {!loading &&
-            filtered.map((customer) => {
-              const name =
-                customer.displayName ||
-                [customer.firstName, customer.lastName]
-                  .filter(Boolean)
-                  .join(" ") ||
-                "Guest";
-
-              return (
-                <div
-                  key={customer.id}
-                  onClick={() => setSelected(customer)}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(255,255,255,0.022)")
+              {loading && <Spinner />}
+              {!loading && filtered.length === 0 && (
+                <EmptyState
+                  label={
+                    search
+                      ? `No customers matching "${search}"`
+                      : "No customers found"
                   }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 130px 110px 110px 100px",
-                    padding: "13px 22px",
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    transition: "background 0.12s",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div>
-                      <p
+                />
+              )}
+
+              {!loading &&
+                filtered.map((customer) => {
+                  const name =
+                    customer.displayName ||
+                    [customer.firstName, customer.lastName]
+                      .filter(Boolean)
+                      .join(" ") ||
+                    "Guest";
+
+                  return (
+                    <div
+                      key={customer.id}
+                      onClick={() => setSelected(customer)}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "rgba(255,255,255,0.022)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: gridCols,
+                        padding: isMobile ? "13px 16px" : "13px 22px",
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        alignItems: "center",
+                        cursor: "pointer",
+                        transition: "background 0.12s",
+                      }}
+                    >
+                      <div
                         style={{
-                          fontFamily: "Poppins, sans-serif",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#f0f4f8",
-                          margin: "0 0 2px",
-                        }}
-                      >
-                        {name}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: "monospace",
-                          fontSize: 9,
-                          color: "rgba(240,244,248,0.3)",
-                          margin: 0,
-                        }}
-                      >
-                        {customer.email}
-                      </p>
-                    </div>
-                    {customer.appeal?.status === "pending" && (
-                      <span
-                        title="Pending appeal"
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: "50%",
-                          background: "rgba(232,168,48,0.12)",
-                          border: "1px solid rgba(232,168,48,0.35)",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
+                          gap: 8,
                         }}
                       >
-                        <svg
-                          width="9"
-                          height="9"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#e8a830"
-                          strokeWidth="2.5"
+                        <div>
+                          <p
+                            style={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#f0f4f8",
+                              margin: "0 0 2px",
+                            }}
+                          >
+                            {name}
+                          </p>
+                          <p
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: 9,
+                              color: "rgba(240,244,248,0.3)",
+                              margin: 0,
+                            }}
+                          >
+                            {customer.email}
+                          </p>
+                          {isMobile && (
+                            <p
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: 9,
+                                color: "rgba(240,244,248,0.35)",
+                                margin: "4px 0 0",
+                              }}
+                            >
+                              {customer.numberOfOrders} orders ·{" "}
+                              {formatPrice(
+                                customer.amountSpent.amount,
+                                customer.amountSpent.currencyCode,
+                              )}
+                            </p>
+                          )}
+                        </div>
+                        {customer.appeal?.status === "pending" && (
+                          <span
+                            title="Pending appeal"
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: "50%",
+                              background: "rgba(232,168,48,0.12)",
+                              border: "1px solid rgba(232,168,48,0.35)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <svg
+                              width="9"
+                              height="9"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#e8a830"
+                              strokeWidth="2.5"
+                            >
+                              <path
+                                d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <path
+                                d="M13.73 21a2 2 0 0 1-3.46 0"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+
+                      {!isMobile && (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 10,
+                            textAlign: "right",
+                            color: "rgba(240,244,248,0.45)",
+                          }}
                         >
-                          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </span>
-                    )}
-                  </div>
+                          {formatDate(customer.createdAt)}
+                        </span>
+                      )}
 
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: 10,
-                      textAlign: "right",
-                      color: "rgba(240,244,248,0.45)",
-                    }}
-                  >
-                    {formatDate(customer.createdAt)}
-                  </span>
+                      {!isMobile && (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 11,
+                            textAlign: "right",
+                            color: "rgba(240,244,248,0.5)",
+                          }}
+                        >
+                          {customer.numberOfOrders}
+                        </span>
+                      )}
 
-                  <span
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: 11,
-                      textAlign: "right",
-                      color: "rgba(240,244,248,0.5)",
-                    }}
-                  >
-                    {customer.numberOfOrders}
-                  </span>
+                      {!isMobile && (
+                        <span
+                          style={{
+                            fontFamily: "Bebas Neue, sans-serif",
+                            fontSize: "1.05rem",
+                            color: "#f0f4f8",
+                            textAlign: "right",
+                          }}
+                        >
+                          {formatPrice(
+                            customer.amountSpent.amount,
+                            customer.amountSpent.currencyCode,
+                          )}
+                        </span>
+                      )}
 
-                  <span
-                    style={{
-                      fontFamily: "Bebas Neue, sans-serif",
-                      fontSize: "1.05rem",
-                      color: "#f0f4f8",
-                      textAlign: "right",
-                    }}
-                  >
-                    {formatPrice(
-                      customer.amountSpent.amount,
-                      customer.amountSpent.currencyCode,
-                    )}
-                  </span>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <StatusPill
-                      label={customer.disabled ? "DISABLED" : "ACTIVE"}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                      <div
+                        style={{ display: "flex", justifyContent: "flex-end" }}
+                      >
+                        <StatusPill
+                          label={customer.disabled ? "DISABLED" : "ACTIVE"}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
         </div>
       </div>
 

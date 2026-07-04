@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 export type HeroProduct = {
@@ -341,7 +342,7 @@ export default function Hero({
                   }}
                 >
                   <div
-                    className="w-full h-full flex items-center justify-center"
+                    className="relative w-full h-full flex items-center justify-center"
                     style={{
                       animation: isActive
                         ? "shoeFloat 3.6s ease-in-out infinite"
@@ -349,10 +350,13 @@ export default function Hero({
                     }}
                   >
                     {p.image ? (
-                      <img
+                      <Image
                         src={p.image}
                         alt={p.name}
-                        className="w-full h-full object-contain"
+                        fill
+                        sizes="(max-width: 640px) 60vw, 320px"
+                        priority={isActive}
+                        className="object-contain"
                         style={{
                           transform: `translate(${tx}px, ${ty}px) scale(${sc}) rotate(${tilt}deg)`,
                           filter: `drop-shadow(0 26px 32px rgba(0,0,0,0.6)) drop-shadow(0 0 ${isActive ? 52 : 24}px rgba(${p.glow},${isActive ? 0.36 : 0.14}))`,

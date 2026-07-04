@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -478,24 +477,6 @@ export default function LoginPage() {
           <Suspense fallback={<div style={{ height: "120px" }} />}>
             <LoginForm />
           </Suspense>
-
-          <p
-            style={{
-              textAlign: "center",
-              fontFamily: "monospace",
-              fontSize: "10px",
-              color: "rgba(245,247,249,0.28)",
-              letterSpacing: "0.06em",
-            }}
-          >
-            No account yet?{" "}
-            <Link
-              href="/account/signup"
-              style={{ color: "#e8a830", textDecoration: "none" }}
-            >
-              Create one →
-            </Link>
-          </p>
         </div>
       </section>
       <Footer />

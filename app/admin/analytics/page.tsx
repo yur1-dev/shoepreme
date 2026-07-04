@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { StatCard, Spinner } from "@/lib/admin-ui";
+import { useLayoutMode } from "@/lib/use-layout-mode";
 
 const GOLD = "#e8a830";
 const GREEN = "#4ade80";
@@ -48,6 +49,7 @@ function Panel({
         border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 16,
         padding: 22,
+        minWidth: 0,
         ...style,
       }}
     >
@@ -437,6 +439,7 @@ function Funnel({ data }: { data: { stage: string; value: number }[] }) {
 }
 
 export default function AdminAnalyticsPage() {
+  const { isMobile, isTablet } = useLayoutMode();
   const [range, setRange] = useState(30);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -499,14 +502,15 @@ export default function AdminAnalyticsPage() {
   const maxProductRevenue = data?.topProducts?.[0]?.revenue || 1;
 
   return (
-    <div style={{ padding: "32px 36px 60px" }}>
+    <div style={{ padding: isMobile ? "20px 16px 40px" : "32px 36px 60px" }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
+            alignItems: isMobile ? "flex-start" : "flex-end",
+            flexDirection: isMobile ? "column" : "row",
             marginBottom: 28,
             flexWrap: "wrap",
             gap: 12,
@@ -529,7 +533,7 @@ export default function AdminAnalyticsPage() {
             <h1
               style={{
                 fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "2.4rem",
+                fontSize: isMobile ? "1.9rem" : "2.4rem",
                 letterSpacing: "0.04em",
                 color: "#f0f4f8",
                 margin: 0,
@@ -547,6 +551,7 @@ export default function AdminAnalyticsPage() {
               border: "1px solid rgba(255,255,255,0.07)",
               borderRadius: 10,
               padding: 4,
+              width: isMobile ? "100%" : "auto",
             }}
           >
             {RANGES.map((r) => (
@@ -554,6 +559,7 @@ export default function AdminAnalyticsPage() {
                 key={r.days}
                 onClick={() => setRange(r.days)}
                 style={{
+                  flex: isMobile ? 1 : "none",
                   padding: "7px 14px",
                   borderRadius: 7,
                   border: "none",
@@ -581,7 +587,11 @@ export default function AdminAnalyticsPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateColumns: isMobile
+                  ? "1fr 1fr"
+                  : isTablet
+                    ? "1fr 1fr"
+                    : "repeat(4, 1fr)",
                 gap: 12,
                 marginBottom: 12,
               }}
@@ -615,13 +625,17 @@ export default function AdminAnalyticsPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "2fr 1fr",
+                gridTemplateColumns: isMobile || isTablet ? "1fr" : "2fr 1fr",
                 gap: 12,
                 marginBottom: 12,
               }}
             >
               <Panel title="Revenue Trend">
-                <RevenueLineChart data={data.revenueTrend} />
+                <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
+                  <div style={{ minWidth: isMobile ? 600 : "auto" }}>
+                    <RevenueLineChart data={data.revenueTrend} />
+                  </div>
+                </div>
               </Panel>
               <Panel title="Payment Methods">
                 <Donut data={groupedPayments} />
@@ -632,7 +646,7 @@ export default function AdminAnalyticsPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1.3fr",
+                gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1.3fr",
                 gap: 12,
                 marginBottom: 12,
               }}
@@ -648,7 +662,12 @@ export default function AdminAnalyticsPage() {
                   {data.topProducts.map((p: any, i: number) => (
                     <div
                       key={p.title}
-                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: isMobile ? 8 : 12,
+                        flexWrap: isMobile ? "wrap" : "nowrap",
+                      }}
                     >
                       <span
                         style={{
@@ -661,7 +680,7 @@ export default function AdminAnalyticsPage() {
                       >
                         {i + 1}
                       </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ flex: 1, minWidth: isMobile ? "100%" : 0 }}>
                         <p
                           style={{
                             fontFamily: "Poppins, sans-serif",
@@ -732,8 +751,9 @@ export default function AdminAnalyticsPage() {
                     key={o.id}
                     style={{
                       display: "flex",
+                      flexWrap: isMobile ? "wrap" : "nowrap",
                       alignItems: "center",
-                      gap: 16,
+                      gap: isMobile ? 8 : 16,
                       padding: "10px 0",
                       borderBottom:
                         i < data.recentOrders.length - 1
@@ -747,7 +767,7 @@ export default function AdminAnalyticsPage() {
                         fontSize: 11,
                         fontWeight: 700,
                         color: GOLD,
-                        minWidth: 70,
+                        minWidth: isMobile ? "auto" : 70,
                       }}
                     >
                       {o.name}
@@ -757,11 +777,14 @@ export default function AdminAnalyticsPage() {
                         fontFamily: "monospace",
                         fontSize: 10,
                         color: "rgba(240,244,248,0.35)",
-                        minWidth: 70,
+                        minWidth: isMobile ? "auto" : 70,
                       }}
                     >
                       {formatDate(o.createdAt)}
                     </span>
+                    {isMobile && (
+                      <span style={{ flexBasis: "100%", height: 0 }} />
+                    )}
                     <span
                       style={{
                         fontFamily: "monospace",

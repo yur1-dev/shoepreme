@@ -13,6 +13,10 @@ import {
   ActionButton,
   FieldLabel,
 } from "@/lib/admin-ui";
+import { useLayoutMode } from "@/lib/use-layout-mode";
+
+const PREORDERS_GRID_DESKTOP = "22px 100px 1fr 140px 110px 140px";
+const PREORDERS_GRID_MOBILE = "20px 90px 1fr 100px";
 
 function formatPrice(amount: string) {
   return new Intl.NumberFormat("en-PH", {
@@ -53,6 +57,8 @@ interface DraftOrder {
 }
 
 export default function AdminPreOrdersPage() {
+  const { isMobile, isTablet } = useLayoutMode();
+  const gridCols = isMobile ? PREORDERS_GRID_MOBILE : PREORDERS_GRID_DESKTOP;
   const [drafts, setDrafts] = useState<DraftOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -118,14 +124,16 @@ export default function AdminPreOrdersPage() {
   }, [drafts, filter, search]);
 
   return (
-    <div style={{ padding: "32px 36px 60px" }}>
+    <div style={{ padding: isMobile ? "20px 16px 40px" : "32px 36px 60px" }}>
       <div style={{ maxWidth: 1320, margin: "0 auto" }}>
         {/* Header */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
+            alignItems: isMobile ? "flex-start" : "flex-end",
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? 12 : 0,
             marginBottom: 28,
           }}
         >
@@ -146,7 +154,7 @@ export default function AdminPreOrdersPage() {
             <h1
               style={{
                 fontFamily: "Bebas Neue, sans-serif",
-                fontSize: "2.4rem",
+                fontSize: isMobile ? "1.9rem" : "2.4rem",
                 letterSpacing: "0.04em",
                 color: "#f0f4f8",
                 margin: 0,
@@ -164,7 +172,7 @@ export default function AdminPreOrdersPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)",
             gap: 12,
             marginBottom: 28,
           }}
@@ -228,313 +236,346 @@ export default function AdminPreOrdersPage() {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "22px 100px 1fr 140px 110px 140px",
-              padding: "12px 22px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              fontFamily: "monospace",
-              fontSize: 8,
-              fontWeight: 900,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "rgba(240,244,248,0.28)",
-            }}
-          >
-            <span />
-            <span>Reservation</span>
-            <span>Customer</span>
-            <span>Date</span>
-            <span>Status</span>
-            <span style={{ textAlign: "right" }}>Total</span>
-          </div>
+          <div style={{ overflowX: isMobile ? "auto" : "visible" }}>
+            <div style={{ minWidth: isMobile ? 600 : "auto" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: gridCols,
+                  padding: isMobile ? "12px 16px" : "12px 22px",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  fontFamily: "monospace",
+                  fontSize: 8,
+                  fontWeight: 900,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "rgba(240,244,248,0.28)",
+                }}
+              >
+                <span />
+                <span>Reservation</span>
+                <span>Customer</span>
+                {!isMobile && <span>Date</span>}
+                <span>Status</span>
+                {!isMobile && <span style={{ textAlign: "right" }}>Total</span>}
+              </div>
 
-          {loading && <Spinner />}
+              {loading && <Spinner />}
 
-          {!loading && filtered.length === 0 && (
-            <EmptyState
-              label={
-                search
-                  ? `No reservations matching "${search}"`
-                  : "No reservations yet"
-              }
-            />
-          )}
+              {!loading && filtered.length === 0 && (
+                <EmptyState
+                  label={
+                    search
+                      ? `No reservations matching "${search}"`
+                      : "No reservations yet"
+                  }
+                />
+              )}
 
-          {!loading &&
-            filtered.map((draft) => {
-              const isBusy = actionLoading === draft.id;
-              const isExpanded = expandedId === draft.id;
-              const isOpen = draft.status === "OPEN";
+              {!loading &&
+                filtered.map((draft) => {
+                  const isBusy = actionLoading === draft.id;
+                  const isExpanded = expandedId === draft.id;
+                  const isOpen = draft.status === "OPEN";
 
-              return (
-                <div key={draft.id}>
-                  {/* Row */}
-                  <div
-                    onClick={() =>
-                      setExpandedId(isExpanded ? null : draft.id)
-                    }
-                    onMouseEnter={(e) => {
-                      if (!isExpanded)
-                        e.currentTarget.style.background =
-                          "rgba(255,255,255,0.022)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isExpanded)
-                        e.currentTarget.style.background = "transparent";
-                    }}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "22px 100px 1fr 140px 110px 140px",
-                      padding: "14px 22px",
-                      borderBottom: isExpanded
-                        ? "none"
-                        : "1px solid rgba(255,255,255,0.04)",
-                      alignItems: "center",
-                      cursor: "pointer",
-                      background: isExpanded
-                        ? "rgba(255,255,255,0.022)"
-                        : "transparent",
-                      transition: "background 0.12s",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "rgba(240,244,248,0.3)",
-                        fontSize: 9,
-                        display: "inline-block",
-                        transform: isExpanded ? "rotate(90deg)" : "none",
-                        transition: "transform 0.15s",
-                      }}
-                    >
-                      ▸
-                    </span>
-
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#e8a830",
-                      }}
-                    >
-                      {draft.name}
-                    </span>
-
-                    <div>
-                      <p
+                  return (
+                    <div key={draft.id}>
+                      {/* Row */}
+                      <div
+                        onClick={() =>
+                          setExpandedId(isExpanded ? null : draft.id)
+                        }
+                        onMouseEnter={(e) => {
+                          if (!isExpanded)
+                            e.currentTarget.style.background =
+                              "rgba(255,255,255,0.022)";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isExpanded)
+                            e.currentTarget.style.background = "transparent";
+                        }}
                         style={{
-                          fontFamily: "Poppins, sans-serif",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: "#f0f4f8",
-                          margin: "0 0 2px",
+                          display: "grid",
+                          gridTemplateColumns: gridCols,
+                          padding: isMobile ? "14px 16px" : "14px 22px",
+                          borderBottom: isExpanded
+                            ? "none"
+                            : "1px solid rgba(255,255,255,0.04)",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          background: isExpanded
+                            ? "rgba(255,255,255,0.022)"
+                            : "transparent",
+                          transition: "background 0.12s",
                         }}
                       >
-                        {draft.customerName}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: "monospace",
-                          fontSize: 9,
-                          color: "rgba(240,244,248,0.32)",
-                          margin: 0,
-                        }}
-                      >
-                        {draft.email ?? "—"}
-                      </p>
-                    </div>
-
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 10,
-                        color: "rgba(240,244,248,0.45)",
-                      }}
-                    >
-                      {formatDate(draft.createdAt)}
-                    </span>
-
-                    <StatusPill
-                      label={isOpen ? "PENDING" : draft.status}
-                    />
-
-                    <span
-                      style={{
-                        fontFamily: "Bebas Neue, sans-serif",
-                        fontSize: "1.1rem",
-                        color: "#f0f4f8",
-                        textAlign: "right",
-                      }}
-                    >
-                      {formatPrice(draft.totalPrice)}
-                    </span>
-                  </div>
-
-                  {/* Expanded detail */}
-                  {isExpanded && (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 28,
-                        padding: "22px 22px 26px 60px",
-                        borderBottom: "1px solid rgba(255,255,255,0.04)",
-                        background: "rgba(255,255,255,0.016)",
-                      }}
-                    >
-                      {/* Left: items */}
-                      <div>
-                        <FieldLabel>Items ({draft.lineItems.length})</FieldLabel>
-                        <div
+                        <span
                           style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 10,
+                            color: "rgba(240,244,248,0.3)",
+                            fontSize: 9,
+                            display: "inline-block",
+                            transform: isExpanded ? "rotate(90deg)" : "none",
+                            transition: "transform 0.15s",
                           }}
                         >
-                          {draft.lineItems.map((item, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                background: "rgba(255,255,255,0.025)",
-                                border: "1px solid rgba(255,255,255,0.05)",
-                                borderRadius: 10,
-                                padding: "10px 12px",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 44,
-                                  height: 44,
-                                  borderRadius: 8,
-                                  background: "rgba(255,255,255,0.05)",
-                                  border: "1px solid rgba(255,255,255,0.08)",
-                                  overflow: "hidden",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {item.image && (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={item.image}
-                                    alt={item.title}
-                                    style={{
-                                      width: "100%",
-                                      height: "100%",
-                                      objectFit: "cover",
-                                    }}
-                                  />
-                                )}
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                <p
-                                  style={{
-                                    fontFamily: "Poppins, sans-serif",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    color: "#f0f4f8",
-                                    margin: "0 0 2px",
-                                  }}
-                                >
-                                  {item.title}
-                                </p>
-                                <p
-                                  style={{
-                                    fontFamily: "monospace",
-                                    fontSize: 9,
-                                    color: "rgba(240,244,248,0.38)",
-                                    margin: 0,
-                                  }}
-                                >
-                                  {item.variantTitle &&
-                                  item.variantTitle !== "Default Title"
-                                    ? `${item.variantTitle} · `
-                                    : ""}
-                                  Qty {item.quantity}
-                                </p>
-                              </div>
-                              <span
-                                style={{
-                                  fontFamily: "Bebas Neue, sans-serif",
-                                  fontSize: "1rem",
-                                  color: "#f0f4f8",
-                                }}
-                              >
-                                {formatPrice(
-                                  String(
-                                    parseFloat(item.originalUnitPrice) *
-                                      item.quantity,
-                                  ),
-                                )}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                          ▸
+                        </span>
 
-                      {/* Right: action */}
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 14,
-                          alignItems: "flex-start",
-                        }}
-                      >
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#e8a830",
+                          }}
+                        >
+                          {draft.name}
+                        </span>
+
                         <div>
-                          <FieldLabel>Status</FieldLabel>
                           <p
                             style={{
                               fontFamily: "Poppins, sans-serif",
                               fontSize: 12,
-                              color: "rgba(240,244,248,0.6)",
+                              fontWeight: 600,
+                              color: "#f0f4f8",
+                              margin: "0 0 2px",
+                            }}
+                          >
+                            {draft.customerName}
+                          </p>
+                          <p
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: 9,
+                              color: "rgba(240,244,248,0.32)",
                               margin: 0,
                             }}
                           >
-                            {isOpen
-                              ? "Awaiting stock confirmation from admin."
-                              : "This reservation has been converted to an order."}
+                            {draft.email ?? "—"}
                           </p>
                         </div>
 
-                        {isOpen && (
-                          <ActionButton
-                            onClick={(e: any) => {
-                              e.stopPropagation();
-                              setConfirmTarget(draft);
-                            }}
-                            disabled={isBusy}
-                            variant="green"
-                          >
-                            {isBusy ? "…" : "Confirm Stock & Send Invoice"}
-                          </ActionButton>
-                        )}
-
-                        {draft.invoiceUrl && (
-                          <a
-                            href={draft.invoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        {!isMobile && (
+                          <span
                             style={{
                               fontFamily: "monospace",
                               fontSize: 10,
-                              color: "#4a7fa5",
+                              color: "rgba(240,244,248,0.45)",
                             }}
                           >
-                            View Invoice →
-                          </a>
+                            {formatDate(draft.createdAt)}
+                          </span>
+                        )}
+
+                        <StatusPill label={isOpen ? "PENDING" : draft.status} />
+
+                        {!isMobile && (
+                          <span
+                            style={{
+                              fontFamily: "Bebas Neue, sans-serif",
+                              fontSize: "1.1rem",
+                              color: "#f0f4f8",
+                              textAlign: "right",
+                            }}
+                          >
+                            {formatPrice(draft.totalPrice)}
+                          </span>
                         )}
                       </div>
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                            gap: isMobile ? 18 : 28,
+                            padding: isMobile
+                              ? "18px 16px 22px"
+                              : "22px 22px 26px 60px",
+                            borderBottom: "1px solid rgba(255,255,255,0.04)",
+                            background: "rgba(255,255,255,0.016)",
+                          }}
+                        >
+                          {isMobile && (
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                fontFamily: "monospace",
+                                fontSize: 10,
+                                color: "rgba(240,244,248,0.45)",
+                              }}
+                            >
+                              <span>{formatDate(draft.createdAt)}</span>
+                              <span
+                                style={{
+                                  fontFamily: "Bebas Neue, sans-serif",
+                                  fontSize: "1.1rem",
+                                  color: "#f0f4f8",
+                                }}
+                              >
+                                {formatPrice(draft.totalPrice)}
+                              </span>
+                            </div>
+                          )}
+                          {/* Left: items */}
+                          <div>
+                            <FieldLabel>
+                              Items ({draft.lineItems.length})
+                            </FieldLabel>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 10,
+                              }}
+                            >
+                              {draft.lineItems.map((item, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    background: "rgba(255,255,255,0.025)",
+                                    border: "1px solid rgba(255,255,255,0.05)",
+                                    borderRadius: 10,
+                                    padding: "10px 12px",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: 44,
+                                      height: 44,
+                                      borderRadius: 8,
+                                      background: "rgba(255,255,255,0.05)",
+                                      border:
+                                        "1px solid rgba(255,255,255,0.08)",
+                                      overflow: "hidden",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {item.image && (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={item.image}
+                                        alt={item.title}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <p
+                                      style={{
+                                        fontFamily: "Poppins, sans-serif",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: "#f0f4f8",
+                                        margin: "0 0 2px",
+                                      }}
+                                    >
+                                      {item.title}
+                                    </p>
+                                    <p
+                                      style={{
+                                        fontFamily: "monospace",
+                                        fontSize: 9,
+                                        color: "rgba(240,244,248,0.38)",
+                                        margin: 0,
+                                      }}
+                                    >
+                                      {item.variantTitle &&
+                                      item.variantTitle !== "Default Title"
+                                        ? `${item.variantTitle} · `
+                                        : ""}
+                                      Qty {item.quantity}
+                                    </p>
+                                  </div>
+                                  <span
+                                    style={{
+                                      fontFamily: "Bebas Neue, sans-serif",
+                                      fontSize: "1rem",
+                                      color: "#f0f4f8",
+                                    }}
+                                  >
+                                    {formatPrice(
+                                      String(
+                                        parseFloat(item.originalUnitPrice) *
+                                          item.quantity,
+                                      ),
+                                    )}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Right: action */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 14,
+                              alignItems: "flex-start",
+                            }}
+                          >
+                            <div>
+                              <FieldLabel>Status</FieldLabel>
+                              <p
+                                style={{
+                                  fontFamily: "Poppins, sans-serif",
+                                  fontSize: 12,
+                                  color: "rgba(240,244,248,0.6)",
+                                  margin: 0,
+                                }}
+                              >
+                                {isOpen
+                                  ? "Awaiting stock confirmation from admin."
+                                  : "This reservation has been converted to an order."}
+                              </p>
+                            </div>
+
+                            {isOpen && (
+                              <ActionButton
+                                onClick={(e: any) => {
+                                  e.stopPropagation();
+                                  setConfirmTarget(draft);
+                                }}
+                                disabled={isBusy}
+                                variant="green"
+                              >
+                                {isBusy ? "…" : "Confirm Stock & Send Invoice"}
+                              </ActionButton>
+                            )}
+
+                            {draft.invoiceUrl && (
+                              <a
+                                href={draft.invoiceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  fontFamily: "monospace",
+                                  fontSize: 10,
+                                  color: "#4a7fa5",
+                                }}
+                              >
+                                View Invoice →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+            </div>
+          </div>
         </div>
       </div>
 

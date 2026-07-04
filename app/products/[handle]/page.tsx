@@ -39,9 +39,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: `${CATEGORY_MAP[handle]} — Shoepreme PH` };
   }
   const product = await getProductByHandle(handle);
+  if (!product) return { title: "Product Not Found — Shoepreme PH" };
+
+  const description = product.description?.slice(0, 155) ?? "";
+  const image = product.images?.edges?.[0]?.node?.url;
+
   return {
-    title: `${product.title} — Shoepreme PH`,
-    description: product.description?.slice(0, 155) ?? "",
+    title: product.title,
+    description,
+    openGraph: {
+      title: product.title,
+      description,
+      type: "website",
+      images: image
+        ? [{ url: image, width: 1200, height: 1200, alt: product.title }]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.title,
+      description,
+      images: image ? [image] : undefined,
+    },
   };
 }
 
@@ -58,41 +77,131 @@ export default async function ProductPage({ params }: Props) {
   const maxPrice = parseFloat(product.priceRange.maxVariantPrice.amount);
   const hasMultiplePrices = maxPrice > price;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.description,
+    image: images.map((img: any) => img.url),
+    brand: product.vendor
+      ? { "@type": "Brand", name: product.vendor }
+      : undefined,
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: product.priceRange.minVariantPrice.currencyCode,
+      lowPrice: price,
+      highPrice: maxPrice,
+      availability: variants.some((v: any) => v.availableForSale)
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      url: `https://shoepreme-k.com/products/${handle}`,
+    },
+  };
+
   return (
     <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Navbar />
       <div style={{ paddingTop: "80px" }}>
         <section
-          style={{ maxWidth: "1280px", margin: "0 auto", padding: "clamp(16px, 4vw, 32px)", display: "grid", gridTemplateColumns: "1fr", gap: "clamp(24px, 4vw, 48px)" }}
+          style={{
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "clamp(16px, 4vw, 32px)",
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            gap: "clamp(24px, 4vw, 48px)",
+          }}
           className="product-grid"
         >
-          <div style={{ position: "sticky", top: "112px", alignSelf: "start", maxHeight: "clamp(320px, 60vw, 9999px)", overflow: "hidden" }} className="gallery-wrap">
+          <div
+            style={{
+              position: "sticky",
+              top: "112px",
+              alignSelf: "start",
+              maxHeight: "clamp(320px, 60vw, 9999px)",
+              overflow: "hidden",
+            }}
+            className="gallery-wrap"
+          >
             <ImageGallery images={images} title={product.title} />
           </div>
 
           <div className="product-right">
-            <p style={{ color: "rgba(245,247,249,0.35)", fontSize: "12px", marginBottom: "16px", letterSpacing: "0.05em" }}>
-              <a href="/" style={{ color: "rgba(245,247,249,0.35)", textDecoration: "none" }}>Home</a>
+            <p
+              style={{
+                color: "rgba(245,247,249,0.35)",
+                fontSize: "12px",
+                marginBottom: "16px",
+                letterSpacing: "0.05em",
+              }}
+            >
+              <a
+                href="/"
+                style={{
+                  color: "rgba(245,247,249,0.35)",
+                  textDecoration: "none",
+                }}
+              >
+                Home
+              </a>
               {" / "}
-              <a href="/products" style={{ color: "rgba(245,247,249,0.35)", textDecoration: "none" }}>Products</a>
+              <a
+                href="/products"
+                style={{
+                  color: "rgba(245,247,249,0.35)",
+                  textDecoration: "none",
+                }}
+              >
+                Products
+              </a>
               {" / "}
               <span style={{ color: "#4a7fa5" }}>{product.title}</span>
             </p>
 
             {product.vendor && (
-              <p style={{ color: "#4a7fa5", fontSize: "11px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "10px" }}>
+              <p
+                style={{
+                  color: "#4a7fa5",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                  marginBottom: "10px",
+                }}
+              >
                 {product.vendor}
               </p>
             )}
 
-            <h1 style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", color: "#f5f7f9", lineHeight: 1, letterSpacing: "-0.01em", marginBottom: "20px" }}>
+            <h1
+              style={{
+                fontFamily: "Bebas Neue, sans-serif",
+                fontSize: "clamp(2rem, 5vw, 3.2rem)",
+                color: "#f5f7f9",
+                lineHeight: 1,
+                letterSpacing: "-0.01em",
+                marginBottom: "20px",
+              }}
+            >
               {product.title}
             </h1>
 
             <div style={{ marginBottom: "28px" }}>
-              <span style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "2rem", color: "#4a7fa5", letterSpacing: "0.04em" }}>
+              <span
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "2rem",
+                  color: "#4a7fa5",
+                  letterSpacing: "0.04em",
+                }}
+              >
                 ₱{price.toLocaleString("en-PH", { minimumFractionDigits: 0 })}
-                {hasMultiplePrices && ` – ₱${maxPrice.toLocaleString("en-PH", { minimumFractionDigits: 0 })}`}
+                {hasMultiplePrices &&
+                  ` – ₱${maxPrice.toLocaleString("en-PH", { minimumFractionDigits: 0 })}`}
               </span>
             </div>
 
@@ -106,26 +215,119 @@ export default async function ProductPage({ params }: Props) {
             />
 
             {product.description && (
-              <div style={{ marginTop: "32px", paddingTop: "28px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
-                <h3 style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#8896a7", marginBottom: "12px" }}>
+              <div
+                style={{
+                  marginTop: "32px",
+                  paddingTop: "28px",
+                  borderTop: "1px solid rgba(0,0,0,0.07)",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "#8896a7",
+                    marginBottom: "12px",
+                  }}
+                >
                   Description
                 </h3>
-                <p style={{ color: "rgba(245,247,249,0.6)", fontSize: "14px", lineHeight: 1.75, whiteSpace: "pre-line" }}>
+                <p
+                  style={{
+                    color: "rgba(245,247,249,0.6)",
+                    fontSize: "14px",
+                    lineHeight: 1.75,
+                    whiteSpace: "pre-line",
+                  }}
+                >
                   {product.description}
                 </p>
               </div>
             )}
 
-            <div style={{ marginTop: "28px", padding: "20px", borderRadius: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div
+              style={{
+                marginTop: "28px",
+                padding: "20px",
+                borderRadius: "12px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
               {[
-                { svg: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />, text: "100% Authentic — verified before shipping", color: "#22c55e" },
-                { svg: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />, text: "Free shipping on orders over ₱5,000", color: "#4a7fa5" },
-                { svg: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />, text: "Returns accepted within 7 days", color: "#e8a830" },
-                { svg: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />, text: "Pre-order from JP, TW, HK, US available", color: "#a78bfa" },
+                {
+                  svg: (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                    />
+                  ),
+                  text: "100% Authentic — verified before shipping",
+                  color: "#22c55e",
+                },
+                {
+                  svg: (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                    />
+                  ),
+                  text: "Free shipping on orders over ₱5,000",
+                  color: "#4a7fa5",
+                },
+                {
+                  svg: (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  ),
+                  text: "Returns accepted within 7 days",
+                  color: "#e8a830",
+                },
+                {
+                  svg: (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  ),
+                  text: "Pre-order from JP, TW, HK, US available",
+                  color: "#a78bfa",
+                },
               ].map((b) => (
-                <div key={b.text} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={b.color} style={{ flexShrink: 0 }}>{b.svg}</svg>
-                  <span style={{ color: "rgba(245,247,249,0.7)", fontSize: "13px" }}>{b.text}</span>
+                <div
+                  key={b.text}
+                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke={b.color}
+                    style={{ flexShrink: 0 }}
+                  >
+                    {b.svg}
+                  </svg>
+                  <span
+                    style={{ color: "rgba(245,247,249,0.7)", fontSize: "13px" }}
+                  >
+                    {b.text}
+                  </span>
                 </div>
               ))}
             </div>

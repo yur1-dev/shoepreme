@@ -128,6 +128,7 @@ const NAV = [
   { href: "/admin/products", label: "Products", icon: ICON_PRODUCTS },
   { href: "/admin/customers", label: "Customers", icon: ICON_CUSTOMERS },
   { href: "/admin/crew", label: "The Crew", icon: ICON_CREW },
+  { href: "/admin/analytics", label: "Analytics", icon: ICON_ANALYTICS },
 ];
 
 // ── Breakpoints ──────────────────────────────────────────────────────────
@@ -421,59 +422,6 @@ export default function AdminLayout({
               </Link>
             );
           })}
-
-          {/* Coming soon items */}
-          {[{ label: "Analytics", icon: ICON_ANALYTICS }].map(
-            ({ label, icon }) => (
-              <div
-                key={label}
-                title={!showLabels ? label : undefined}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 11,
-                  padding: "10px 13px",
-                  borderRadius: 9,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
-                  color: "rgba(240,244,248,0.18)",
-                  borderLeft: "2px solid transparent",
-                  cursor: "not-allowed",
-                  position: "relative",
-                }}
-              >
-                <span
-                  style={{
-                    color: "rgba(240,244,248,0.15)",
-                    display: "flex",
-                    flexShrink: 0,
-                  }}
-                >
-                  {icon}
-                </span>
-                {showLabels && label}
-                {showLabels && (
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      fontFamily: "monospace",
-                      fontSize: 7,
-                      fontWeight: 800,
-                      letterSpacing: "0.1em",
-                      color: "rgba(232,168,48,0.4)",
-                      background: "rgba(232,168,48,0.07)",
-                      border: "1px solid rgba(232,168,48,0.15)",
-                      borderRadius: 4,
-                      padding: "2px 5px",
-                    }}
-                  >
-                    SOON
-                  </span>
-                )}
-              </div>
-            ),
-          )}
         </nav>
 
         {/* Bottom */}
