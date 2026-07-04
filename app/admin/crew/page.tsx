@@ -242,14 +242,18 @@ function DatePickerField({
                 const iso = isoFor(day);
                 const isBooked = bookedDates.has(iso);
                 const isSelected = value === iso;
+                const todayIso = new Date().toLocaleDateString("sv-SE");
+                const isPast = iso < todayIso;
                 return (
                   <button
                     type="button"
                     key={iso}
                     onClick={() => {
+                      if (isPast) return;
                       onChange(iso);
                       setOpen(false);
                     }}
+                    disabled={isPast}
                     style={{
                       position: "relative",
                       aspectRatio: "1",
@@ -260,10 +264,12 @@ function DatePickerField({
                       background: isSelected
                         ? "rgba(232,168,48,0.15)"
                         : "transparent",
-                      color: isSelected ? "#e8a830" : "#f5f7f9",
+                      color: isPast
+                        ? "rgba(240,244,248,0.15)"
+                        : isSelected ? "#e8a830" : "#f5f7f9",
                       fontFamily: "monospace",
                       fontSize: 11,
-                      cursor: "pointer",
+                      cursor: isPast ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

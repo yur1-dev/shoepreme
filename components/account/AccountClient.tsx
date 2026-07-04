@@ -34,6 +34,8 @@ const STATUS_COLORS: Record<string, string> = {
   PAID: "#4ade80",
   PENDING: "#e8a830",
   REFUNDED: "#f87171",
+  VOIDED: "#f87171",
+  CANCELLED: "#f87171",
   FULFILLED: "#4a7fa5",
   UNFULFILLED: "rgba(245,247,249,0.4)",
   PARTIALLY_FULFILLED: "#e8a830",
@@ -96,6 +98,8 @@ interface Order {
   processedAt: string;
   financialStatus: string;
   fulfillmentStatus: string;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
   statusUrl?: string;
   currentTotalPrice: MoneyV2;
   subtotalPrice: MoneyV2;
@@ -252,7 +256,7 @@ const ORDER_TABS: {
   {
     key: "cancelled",
     label: "Cancelled",
-    filter: (o) => o.financialStatus === "REFUNDED",
+    filter: (o) => o.financialStatus === "REFUNDED" || o.financialStatus === "VOIDED" || !!o.cancelledAt,
   },
 ];
 
@@ -624,11 +628,22 @@ function OrdersSection({
 }
 
 // ─── Cancel Order Button ──────────────────────────────────────────────────────
+const CANCEL_REASONS = [
+  "Changed my mind",
+  "Found a better price elsewhere",
+  "Ordered by mistake",
+  "Shipping takes too long",
+  "Payment issues",
+  "Other",
+];
+
 function CancelOrderButton({ order }: { order: Order }) {
   const [open, setOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [selectedReason, setSelectedReason] = useState("");
+  const [otherReason, setOtherReason] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -643,14 +658,18 @@ function CancelOrderButton({ order }: { order: Order }) {
 
   async function handleCancel() {
     setCancelling(true);
+    const reason = selectedReason === "Other" ? otherReason : selectedReason;
     try {
       const numericId = (order.id.split("/").pop() ?? order.id).split("?")[0];
       const res = await fetch(`/api/account-api/orders/${numericId}/cancel`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
       });
       if (res.ok) {
         setCancelled(true);
         setOpen(false);
+        window.location.reload();
       }
     } catch (err) {
       console.error("Failed to cancel order", err);
@@ -815,7 +834,7 @@ function CancelOrderButton({ order }: { order: Order }) {
                   fontSize: "10px",
                   color: "rgba(245,247,249,0.4)",
                   letterSpacing: "0.04em",
-                  margin: "0 0 24px",
+                  margin: "0 0 16px",
                   lineHeight: 1.7,
                 }}
               >
@@ -823,6 +842,55 @@ function CancelOrderButton({ order }: { order: Order }) {
                 hasn't been made yet, the order will be voided. This action
                 cannot be undone.
               </p>
+              {/* Reason selector */}
+              <p style={{ fontFamily: "monospace", fontSize: "8px", fontWeight: 800, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(245,247,249,0.3)", margin: "0 0 8px" }}>
+                Reason for cancellation
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "20px" }}>
+                {CANCEL_REASONS.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setSelectedReason(r)}
+                    style={{
+                      padding: "10px 14px",
+                      background: selectedReason === r ? "rgba(232,168,48,0.08)" : "rgba(255,255,255,0.02)",
+                      border: `1px solid ${selectedReason === r ? "rgba(232,168,48,0.35)" : "rgba(255,255,255,0.07)"}`,
+                      borderRadius: "8px",
+                      color: selectedReason === r ? "#e8a830" : "rgba(245,247,249,0.45)",
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      letterSpacing: "0.06em",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+                {selectedReason === "Other" && (
+                  <textarea
+                    value={otherReason}
+                    onChange={(e) => setOtherReason(e.target.value)}
+                    placeholder="Tell us more…"
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                      padding: "10px 14px",
+                      color: "#f5f7f9",
+                      fontFamily: "monospace",
+                      fontSize: "10px",
+                      letterSpacing: "0.04em",
+                      outline: "none",
+                      resize: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                )}
+              </div>
               <div style={{ display: "flex", gap: "10px" }}>
                 <button
                   onClick={() => setOpen(false)}
@@ -847,7 +915,7 @@ function CancelOrderButton({ order }: { order: Order }) {
                 </button>
                 <button
                   onClick={handleCancel}
-                  disabled={cancelling}
+                  disabled={cancelling || !selectedReason || (selectedReason === "Other" && !otherReason.trim())}
                   style={{
                     flex: 1,
                     padding: "13px",
@@ -860,8 +928,8 @@ function CancelOrderButton({ order }: { order: Order }) {
                     fontWeight: 700,
                     letterSpacing: "0.14em",
                     textTransform: "uppercase",
-                    cursor: cancelling ? "default" : "pointer",
-                    opacity: cancelling ? 0.6 : 1,
+                    cursor: (cancelling || !selectedReason || (selectedReason === "Other" && !otherReason.trim())) ? "default" : "pointer",
+                    opacity: (cancelling || !selectedReason || (selectedReason === "Other" && !otherReason.trim())) ? 0.4 : 1,
                   }}
                 >
                   {cancelling ? "Cancelling…" : "Yes, Cancel"}
@@ -886,7 +954,7 @@ function OrderDetail({
   const items = order.lineItems.edges.map((e) => e.node);
   const addr = order.shippingAddress;
   const isPending = order.financialStatus === "PENDING";
-  const isCancellable = order.financialStatus === "PENDING";
+  const isCancellable = order.financialStatus === "PENDING" && !order.cancelledAt;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -1563,26 +1631,77 @@ function OrderDetail({
           </div>
         </div>
       </div>
-      {/* Track CTA */}
-      <button
-        onClick={onTrack}
-        style={{
-          width: "100%",
-          padding: "16px",
-          background: "rgba(232,168,48,0.08)",
-          border: "1px solid rgba(232,168,48,0.25)",
-          borderRadius: "12px",
-          color: "#e8a830",
-          fontFamily: "monospace",
-          fontSize: "10px",
-          fontWeight: 700,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          cursor: "pointer",
-        }}
-      >
-        Track Order →
-      </button>
+      {/* Cancelled state banner */}
+      {(order.cancelledAt || order.financialStatus === "VOIDED" || order.financialStatus === "REFUNDED") && (
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "14px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div>
+              {order.cancelledAt && (
+                <p style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "1.1rem", letterSpacing: "0.06em", color: "#f87171", margin: 0 }}>
+                  {formatDate(order.cancelledAt, true)}
+                </p>
+              )}
+            </div>
+          </div>
+          {order.cancelReason && (
+            <div style={{ background: "rgba(248,113,113,0.04)", border: "1px solid rgba(248,113,113,0.12)", borderRadius: "10px", padding: "12px 16px" }}>
+              <p style={{ fontFamily: "monospace", fontSize: "8px", fontWeight: 800, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(248,113,113,0.4)", margin: "0 0 4px" }}>Reason</p>
+              <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.5)", letterSpacing: "0.04em", margin: 0, lineHeight: 1.6 }}>{order.cancelReason}</p>
+            </div>
+          )}
+          {/* Buy Again */}
+          
+            <a href="/products"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              padding: "16px",
+              background: "rgba(232,168,48,0.08)",
+              border: "1px solid rgba(232,168,48,0.25)",
+              borderRadius: "12px",
+              color: "#e8a830",
+              fontFamily: "monospace",
+              fontSize: "10px",
+              fontWeight: 700,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              textDecoration: "none",
+              boxSizing: "border-box",
+            }}
+          >
+            Buy Again →
+          </a>
+        </div>
+      )}
+
+      {/* Track CTA — hidden if cancelled */}
+      {!order.cancelledAt && order.financialStatus !== "VOIDED" && order.financialStatus !== "REFUNDED" && (
+        <button
+          onClick={onTrack}
+          style={{
+            width: "100%",
+            padding: "16px",
+            background: "rgba(232,168,48,0.08)",
+            border: "1px solid rgba(232,168,48,0.25)",
+            borderRadius: "12px",
+            color: "#e8a830",
+            fontFamily: "monospace",
+            fontSize: "10px",
+            fontWeight: 700,
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          Track Order →
+        </button>
+      )}
 
       {/* Cancel Order — only for pending/unfulfilled orders */}
       {isCancellable && <CancelOrderButton order={order} />}
@@ -3226,6 +3345,68 @@ interface DraftOrder {
   totalPrice: string;
 }
 
+function CancelPreOrderButton({ draftId, draftName, onCancelled }: { draftId: string; draftName: string; onCancelled: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/account-api/pre-orders/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftOrderId: draftId }),
+      });
+      if (res.ok) {
+        setOpen(false);
+        onCancelled();
+      }
+    } catch (err) {
+      console.error("Failed to cancel pre-order", err);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        style={{ width: "100%", padding: "11px", background: "transparent", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "10px", color: "rgba(248,113,113,0.6)", fontFamily: "monospace", fontSize: "9px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", cursor: "pointer", transition: "border-color 0.15s, color 0.15s" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(248,113,113,0.4)"; (e.currentTarget as HTMLButtonElement).style.color = "#f87171"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(248,113,113,0.2)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(248,113,113,0.6)"; }}
+      >
+        Cancel Reservation
+      </button>
+      {mounted && open && createPortal(
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", zIndex: 99998 }} />
+          <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "min(380px, calc(100vw - 48px))", background: "#0d1117", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "18px", padding: "28px", zIndex: 99999 }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "18px" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" /></svg>
+            </div>
+            <p style={{ fontFamily: "monospace", fontSize: "8px", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(248,113,113,0.5)", margin: "0 0 6px" }}>{draftName}</p>
+            <h3 style={{ fontFamily: "Bebas Neue, sans-serif", fontSize: "1.6rem", letterSpacing: "0.06em", color: "#f5f7f9", margin: "0 0 10px" }}>Cancel this reservation?</h3>
+            <p style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.4)", letterSpacing: "0.04em", margin: "0 0 24px", lineHeight: 1.7 }}>
+              This will remove your reservation. No payment has been made, so nothing will be charged. This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setOpen(false)} disabled={cancelling} style={{ flex: 1, padding: "13px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "rgba(245,247,249,0.4)", fontFamily: "monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", cursor: cancelling ? "default" : "pointer", opacity: cancelling ? 0.5 : 1 }}>Keep It</button>
+              <button onClick={handleCancel} disabled={cancelling} style={{ flex: 1, padding: "13px", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: "10px", color: "#f87171", fontFamily: "monospace", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", cursor: cancelling ? "default" : "pointer", opacity: cancelling ? 0.6 : 1 }}>
+                {cancelling ? "Cancelling…" : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
+
 function PreOrdersSection({ email }: { email?: string }) {
   const [drafts, setDrafts] = useState<DraftOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3558,41 +3739,40 @@ function PreOrdersSection({ email }: { email?: string }) {
           {/* Footer */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
               borderTop: "1px solid rgba(255,255,255,0.05)",
               paddingTop: "12px",
-              flexWrap: "wrap",
+              display: "flex",
+              flexDirection: "column",
               gap: "10px",
             }}
           >
-            <div>
-              <p
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "8px",
-                  fontWeight: 800,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "rgba(245,247,249,0.25)",
-                  margin: "0 0 2px",
-                }}
-              >
-                Total (upon confirmation)
-              </p>
-              <p
-                style={{
-                  fontFamily: "Bebas Neue, sans-serif",
-                  fontSize: "1.3rem",
-                  letterSpacing: "0.06em",
-                  color: "#e8a830",
-                  margin: 0,
-                }}
-              >
-                ₱{parseFloat(draft.totalPrice).toLocaleString("en-PH")}
-              </p>
-            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+              <div>
+                <p
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "8px",
+                    fontWeight: 800,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "rgba(245,247,249,0.25)",
+                    margin: "0 0 2px",
+                  }}
+                >
+                  Total (upon confirmation)
+                </p>
+                <p
+                  style={{
+                    fontFamily: "Bebas Neue, sans-serif",
+                    fontSize: "1.3rem",
+                    letterSpacing: "0.06em",
+                    color: "#e8a830",
+                    margin: 0,
+                  }}
+                >
+                  ₱{parseFloat(draft.totalPrice).toLocaleString("en-PH")}
+                </p>
+              </div>
             {draft.invoiceUrl && (
               <a
                 href={draft.invoiceUrl}
@@ -3630,6 +3810,14 @@ function PreOrdersSection({ email }: { email?: string }) {
                 </svg>
                 View Invoice
               </a>
+            )}
+            </div>
+            {draft.status === "OPEN" && (
+              <CancelPreOrderButton
+                draftId={draft.id}
+                draftName={draft.name}
+                onCancelled={() => setDrafts((prev) => prev.filter((d) => d.id !== draft.id))}
+              />
             )}
           </div>
         </div>
@@ -4151,7 +4339,8 @@ export default function AccountClient({
                       .mobile-hide-orders { display: none !important; }
                     }
             @media (min-width: 769px) {
-          .account-sidebar { position: sticky !important; top: 80px !important; align-self: flex-start !important; height: calc(100vh - 80px) !important; overflow-y: auto !important; }
+          .account-sidebar { position: fixed !important; top: 80px !important; left: calc((100vw - 1280px) / 2 + 32px) !important; width: 240px !important; height: calc(100vh - 80px) !important; overflow-y: auto !important; z-index: 10 !important; }
+          .account-content { margin-left: 240px !important; }
         }
       `}</style>
 
@@ -4781,7 +4970,7 @@ export default function AccountClient({
                 </svg>
               ),
               tab: "cancelled",
-              count: orders.filter((o) => o.financialStatus === "REFUNDED")
+              count: orders.filter((o) => o.financialStatus === "REFUNDED" || o.financialStatus === "VOIDED" || !!o.cancelledAt)
                 .length,
             },
           ].map((item) => (

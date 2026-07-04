@@ -144,15 +144,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [cart],
   );
 
-  const checkout = useCallback(() => {
-    if (cart?.checkoutUrl) {
-      const url = new URL(cart.checkoutUrl);
-      url.searchParams.set(
-        "return_to",
-        process.env.NEXT_PUBLIC_APP_URL ?? "https://shoepreme.vercel.app",
-      );
-      window.location.href = url.toString();
+  const checkout = useCallback(async () => {
+    if (!cart?.checkoutUrl) return;
+
+    // Check if logged in before allowing checkout
+    const res = await fetch("/api/auth/session");
+    const session = await res.json();
+
+    if (!session?.user) {
+      // Save current page so we can return after login
+      const returnPath = window.location.pathname;
+      window.location.href = `/account/login?checkout=1&return_to=${encodeURIComponent(returnPath)}`;
+      return;
     }
+
+    const url = new URL(cart.checkoutUrl);
+    url.searchParams.set(
+      "return_to",
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://shoepreme.vercel.app",
+    );
+    window.location.href = url.toString();
   }, [cart]);
 
   return (

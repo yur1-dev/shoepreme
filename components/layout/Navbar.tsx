@@ -157,6 +157,18 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Auto-open cart after login redirect from checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("openCart") === "1") {
+      openCart();
+      // Clean the param from the URL without a reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("openCart");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [openCart]);
+
   return (
     <>
       {/* Fixed wrapper holds BOTH bars stacked in normal flow — no magic top offsets, no gap */}

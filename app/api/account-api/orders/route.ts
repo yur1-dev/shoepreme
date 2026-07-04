@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
       processedAt: node.processedAt,
       financialStatus: node.financialStatus,
       fulfillmentStatus: node.fulfillmentStatus ?? "UNFULFILLED",
+      cancelledAt: null,
+      cancelReason: null,
       statusUrl: node.statusUrl,
       currentTotalPrice: node.currentTotalPrice,
       subtotalPrice: node.subtotalPrice ?? {

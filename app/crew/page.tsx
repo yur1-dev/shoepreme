@@ -61,11 +61,15 @@ const STATS = [
 ];
 
 const BENTO = [
-  { src: null, label: "First Crew Run · Jun 15", caption: "Koronadal Oval" },
-  { src: null, label: "Drop Night", caption: "Shoepreme Store" },
-  { src: null, label: "Race Day", caption: "GenSan Oval" },
-  { src: null, label: "Morning 5K", caption: "Sports Complex" },
-  { src: null, label: "Crew Collab", caption: "Koronadal City" },
+  { src: null, label: "First Crew Run · Jun 15", caption: "Koronadal Oval", size: "hero" },
+  { src: null, label: "Drop Night", caption: "Shoepreme Store", size: "sm" },
+  { src: null, label: "Race Day", caption: "GenSan Oval", size: "sm" },
+  { src: null, label: "Morning 5K", caption: "Sports Complex", size: "sm" },
+  { src: null, label: "Crew Collab", caption: "Koronadal City", size: "sm" },
+  { src: null, label: "Sunset Loop", caption: "Marbel Riverside", size: "sm" },
+  { src: null, label: "Trail Session", caption: "Lake Sebu", size: "sm" },
+  { src: null, label: "Podium Finish", caption: "Koronadal City", size: "sm" },
+  { src: null, label: "Rest Day Fits", caption: "Crew HQ", size: "sm" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -167,9 +171,11 @@ function StatCounter({
 function BentoTile({
   item,
   style,
+  hero = false,
 }: {
   item: (typeof BENTO)[number];
   style?: React.CSSProperties;
+  hero?: boolean;
 }) {
   return (
     <div
@@ -177,8 +183,10 @@ function BentoTile({
         position: "relative",
         borderRadius: "12px",
         overflow: "hidden",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        background: hero ? "rgba(232,168,48,0.04)" : "rgba(255,255,255,0.03)",
+        border: hero
+          ? "1px solid rgba(232,168,48,0.18)"
+          : "1px solid rgba(255,255,255,0.07)",
         ...style,
       }}
     >
@@ -195,11 +203,11 @@ function BentoTile({
         }}
       >
         <svg
-          width="28"
-          height="28"
+          width={hero ? 40 : 26}
+          height={hero ? 40 : 26}
           viewBox="0 0 24 24"
           fill="none"
-          stroke="rgba(232,168,48,0.22)"
+          stroke={hero ? "rgba(232,168,48,0.3)" : "rgba(232,168,48,0.2)"}
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -220,6 +228,28 @@ function BentoTile({
           Add Photo
         </span>
       </div>
+      {hero && (
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            left: 14,
+            fontFamily: "monospace",
+            fontSize: "7px",
+            fontWeight: 800,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "#e8a830",
+            background: "rgba(232,168,48,0.1)",
+            border: "1px solid rgba(232,168,48,0.3)",
+            borderRadius: "3px",
+            padding: "4px 9px",
+          }}
+        >
+          Featured
+        </div>
+      )}
+
       {/* Label overlay — keep this on top of the real image too */}
       <div
         style={{
@@ -227,15 +257,17 @@ function BentoTile({
           bottom: 0,
           left: 0,
           right: 0,
-          padding: "32px 16px 14px",
+          padding: hero ? "48px 20px 18px" : "32px 16px 14px",
           background:
-            "linear-gradient(to top, rgba(13,17,23,0.88) 0%, transparent 100%)",
+            "linear-gradient(to top, rgba(13,17,23,0.9) 0%, transparent 100%)",
         }}
       >
         <p
           style={{
             fontFamily: "Bebas Neue, sans-serif",
-            fontSize: "clamp(0.85rem, 1.6vw, 1.05rem)",
+            fontSize: hero
+              ? "clamp(1.3rem, 2.6vw, 1.9rem)"
+              : "clamp(0.85rem, 1.6vw, 1.05rem)",
             letterSpacing: "0.04em",
             color: "#f5f7f9",
             margin: 0,
@@ -247,7 +279,7 @@ function BentoTile({
         <p
           style={{
             fontFamily: "monospace",
-            fontSize: "8px",
+            fontSize: hero ? "9px" : "8px",
             color: "rgba(245,247,249,0.35)",
             letterSpacing: "0.1em",
             margin: "3px 0 0",
@@ -1083,7 +1115,12 @@ export default function TheCrewPage() {
               style={{ display: "flex", flexDirection: "column", gap: "12px" }}
             >
               {BENTO.map((item, i) => (
-                <BentoTile key={i} item={item} style={{ height: "220px" }} />
+                <BentoTile
+                  key={i}
+                  item={item}
+                  hero={item.size === "hero"}
+                  style={{ height: item.size === "hero" ? "280px" : "200px" }}
+                />
               ))}
             </div>
           ) : isTablet ? (
@@ -1095,26 +1132,54 @@ export default function TheCrewPage() {
               }}
             >
               {BENTO.map((item, i) => (
-                <BentoTile key={i} item={item} style={{ height: "220px" }} />
+                <BentoTile
+                  key={i}
+                  item={item}
+                  hero={item.size === "hero"}
+                  style={{
+                    height: item.size === "hero" ? "320px" : "200px",
+                    gridColumn: item.size === "hero" ? "span 2" : "span 1",
+                  }}
+                />
               ))}
             </div>
           ) : (
-            // Desktop bento: left col spans 2 rows, right 2×2
+            // Desktop bento: true 3x3, hero anchors top-left 2x2 block
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gridTemplateRows: "240px 240px",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateRows: "repeat(3, 180px)",
                 gap: "12px",
               }}
             >
-              <div style={{ gridColumn: "1 / 2", gridRow: "1 / 3" }}>
-                <BentoTile item={BENTO[0]} style={{ height: "100%" }} />
+              <div style={{ gridColumn: "1 / 3", gridRow: "1 / 3" }}>
+                <BentoTile item={BENTO[0]} hero style={{ height: "100%" }} />
               </div>
-              <BentoTile item={BENTO[1]} style={{ height: "100%" }} />
-              <BentoTile item={BENTO[2]} style={{ height: "100%" }} />
-              <BentoTile item={BENTO[3]} style={{ height: "100%" }} />
-              <BentoTile item={BENTO[4]} style={{ height: "100%" }} />
+              <div style={{ gridColumn: "3 / 4", gridRow: "1 / 2" }}>
+                <BentoTile item={BENTO[1]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "4 / 5", gridRow: "1 / 2" }}>
+                <BentoTile item={BENTO[2]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "3 / 4", gridRow: "2 / 3" }}>
+                <BentoTile item={BENTO[3]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "4 / 5", gridRow: "2 / 3" }}>
+                <BentoTile item={BENTO[4]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "1 / 2", gridRow: "3 / 4" }}>
+                <BentoTile item={BENTO[5]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "2 / 3", gridRow: "3 / 4" }}>
+                <BentoTile item={BENTO[6]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "3 / 4", gridRow: "3 / 4" }}>
+                <BentoTile item={BENTO[7]} style={{ height: "100%" }} />
+              </div>
+              <div style={{ gridColumn: "4 / 5", gridRow: "3 / 4" }}>
+                <BentoTile item={BENTO[8]} style={{ height: "100%" }} />
+              </div>
             </div>
           )}
 
