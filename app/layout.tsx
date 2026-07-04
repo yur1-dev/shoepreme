@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     title: "Shoepreme PH",
     description:
       "Authentic performance shoes, direct from Japan, Taiwan & the US.",
-    images: ["/og-image.jpg"],
+    images: ["/og-image.png"],
   },
 };
 

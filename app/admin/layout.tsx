@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+// signOut import removed temporarily — using demo logout instead
 
 const ICON_ORDERS = (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -122,13 +123,40 @@ const ICON_CLOSE = (
   </svg>
 );
 
+// role: undefined = visible to everyone (owner + staff)
 const NAV = [
   { href: "/admin", label: "Orders", icon: ICON_ORDERS },
-  { href: "/admin/pre-orders", label: "Pre-orders", icon: ICON_PREORDERS },
-  { href: "/admin/products", label: "Products", icon: ICON_PRODUCTS },
-  { href: "/admin/customers", label: "Customers", icon: ICON_CUSTOMERS },
-  { href: "/admin/crew", label: "The Crew", icon: ICON_CREW },
-  { href: "/admin/analytics", label: "Analytics", icon: ICON_ANALYTICS },
+  {
+    href: "/admin/pre-orders",
+    label: "Pre-orders",
+    icon: ICON_PREORDERS,
+    role: "owner",
+  },
+  {
+    href: "/admin/products",
+    label: "Products",
+    icon: ICON_PRODUCTS,
+    role: "owner",
+  },
+  {
+    href: "/admin/customers",
+    label: "Customers",
+    icon: ICON_CUSTOMERS,
+    role: "owner",
+  },
+  { href: "/admin/crew", label: "The Crew", icon: ICON_CREW, role: "owner" },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    icon: ICON_ANALYTICS,
+    role: "owner",
+  },
+  {
+    href: "/admin/staff",
+    label: "Staff Access",
+    icon: ICON_CUSTOMERS,
+    role: "owner",
+  },
 ];
 
 // ── Breakpoints ──────────────────────────────────────────────────────────
@@ -179,6 +207,31 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // ── TEMP: read demo cookie instead of real session — REMOVE LATER ──
+  const [demoSession, setDemoSession] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
+  const [demoChecked, setDemoChecked] = useState(false);
+  useEffect(() => {
+    const match = document.cookie.match(/demo-admin-session=([^;]+)/);
+    if (match) {
+      try {
+        setDemoSession(JSON.parse(decodeURIComponent(match[1])));
+      } catch {}
+    }
+    setDemoChecked(true);
+  }, []);
+  const session = demoSession ? { user: demoSession } : null;
+  const status = !demoChecked
+    ? "loading"
+    : demoSession
+      ? "authenticated"
+      : "unauthenticated";
+  // ── END TEMP ──
+
   const { mode, ready } = useLayoutMode();
   const [railHovered, setRailHovered] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -198,6 +251,29 @@ export default function AdminLayout({
   }, [isMobile]);
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Gate: redirect to admin login if not authenticated.
+  // Skip the gate on the login page itself to avoid a redirect loop.
+  useEffect(() => {
+    if (pathname === "/admin/login") return;
+    if (status === "unauthenticated") {
+      router.replace(
+        `/admin/login?callbackUrl=${encodeURIComponent(pathname)}`,
+      );
+    }
+  }, [status, pathname, router]);
+
+  const role = (session?.user as any)?.role as "owner" | "staff" | undefined;
+  const visibleNav = NAV.filter((item) => !item.role || item.role === role);
+
+  // Extra guard: staff hitting an owner-only URL directly gets bounced home.
+  useEffect(() => {
+    if (!role) return;
+    const matchedItem = NAV.find((item) => item.href === pathname);
+    if (matchedItem?.role && matchedItem.role !== role) {
+      router.replace("/admin");
+    }
+  }, [role, pathname, router]);
 
   // Effective expanded state for tablet rail (hover-to-expand)
   const railExpanded = isTablet && railHovered;
@@ -224,6 +300,16 @@ export default function AdminLayout({
     : "translateX(0)";
 
   const topBarHeight = 56;
+
+  // Don't render the admin shell for the login page — it has its own layout.
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
+  // While checking session, or if unauthenticated (about to redirect), show a blank shell.
+  if (status === "loading" || status === "unauthenticated") {
+    return <div style={{ minHeight: "100vh", background: "#090c12" }} />;
+  }
 
   return (
     <div
@@ -384,7 +470,7 @@ export default function AdminLayout({
             flex: 1,
           }}
         >
-          {NAV.map(({ href, label, icon }) => {
+          {visibleNav.map(({ href, label, icon }) => {
             const active = pathname === href;
             return (
               <Link
@@ -426,6 +512,67 @@ export default function AdminLayout({
 
         {/* Bottom */}
         <div style={{ padding: "16px 10px 28px" }}>
+          {showLabels && session?.user && (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 10,
+                padding: "10px 12px",
+                marginBottom: 14,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#f0f4f8",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {session.user.name || "Staff"}
+              </span>
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: role === "owner" ? "#e8a830" : "rgba(240,244,248,0.4)",
+                }}
+              >
+                {role === "owner" ? "Owner" : "Staff"}
+              </span>
+              <button
+                onClick={() => {
+                  document.cookie = "demo-admin-session=; path=/; max-age=0";
+                  window.location.href = "/admin/login";
+                }}
+                style={{
+                  marginTop: 4,
+                  background: "rgba(248,113,113,0.08)",
+                  border: "1px solid rgba(248,113,113,0.2)",
+                  borderRadius: 6,
+                  padding: "6px 10px",
+                  color: "#f87171",
+                  fontFamily: "monospace",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Log Out
+              </button>
+            </div>
+          )}
           <div
             style={{
               height: 1,
