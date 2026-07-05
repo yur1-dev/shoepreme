@@ -77,6 +77,80 @@ export async function GET(request: NextRequest) {
 
     const edges = json.data?.customer?.orders?.edges ?? [];
 
+    // Fetch tracking from Admin API for all orders
+    const SHOPIFY_ADMIN_URL = `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/graphql.json`;
+    const numericIds = edges.map(({ node }: any) => {
+      const raw = node.id as string; // gid://shopify/Order/123
+      return raw.split("/").pop();
+    });
+
+    const trackingMap: Record<string, { number: string; url?: string }[]> = {};
+
+    if (numericIds.length > 0) {
+      try {
+        const adminQuery = `
+          query GetOrderTracking($query: String!) {
+            orders(first: 50, query: $query) {
+              edges {
+                node {
+                  id
+                  fulfillments {
+                    trackingInfo {
+                      number
+                      url
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        // Fetch tracking for each order individually
+        const adminOrderQuery = `
+          query GetOrderTracking($id: ID!) {
+            order(id: $id) {
+              id
+              fulfillments {
+                trackingInfo {
+                  number
+                  url
+                }
+              }
+            }
+          }
+        `;
+
+        await Promise.all(
+          edges.map(async ({ node }: any) => {
+            try {
+              const adminRes = await fetch(SHOPIFY_ADMIN_URL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Shopify-Access-Token": process.env.SHOPIFY_ADMIN_TOKEN!,
+                },
+                body: JSON.stringify({
+                  query: adminOrderQuery,
+                  variables: { id: node.id },
+                }),
+                cache: "no-store",
+              });
+              const adminJson = await adminRes.json();
+              const adminOrder = adminJson.data?.order;
+              if (adminOrder) {
+                const tracking = adminOrder.fulfillments?.flatMap((f: any) => f.trackingInfo ?? []) ?? [];
+                trackingMap[node.id] = tracking;
+              }
+            } catch (err) {
+              console.error(`[orders] Failed to fetch tracking for ${node.id}:`, err);
+            }
+          })
+        );
+      } catch (err) {
+        console.error("[orders] Failed to fetch tracking from Admin API:", err);
+      }
+    }
+
     const orders = edges.map(({ node }: any) => ({
       id: node.id,
       orderNumber: node.orderNumber,
@@ -111,6 +185,10 @@ export async function GET(request: NextRequest) {
           }
         : null,
       lineItems: node.lineItems,
+      fulfillments: (() => {
+        const tracking = trackingMap[node.id] ?? [];
+        return tracking.length > 0 ? [{ trackingInfo: tracking }] : [];
+      })(),
     }));
 
     return NextResponse.json({ orders });

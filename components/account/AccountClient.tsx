@@ -106,6 +106,7 @@ interface Order {
   totalShippingPrice: MoneyV2;
   shippingAddress?: Address | null;
   lineItems: { edges: { node: LineItemNode }[] };
+  fulfillments?: { trackingInfo: { number: string; url?: string }[] }[];
 }
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
@@ -1680,28 +1681,52 @@ function OrderDetail({
         </div>
       )}
 
-      {/* Track CTA — hidden if cancelled */}
-      {!order.cancelledAt && order.financialStatus !== "VOIDED" && order.financialStatus !== "REFUNDED" && (
-        <button
-          onClick={onTrack}
-          style={{
-            width: "100%",
-            padding: "16px",
-            background: "rgba(232,168,48,0.08)",
-            border: "1px solid rgba(232,168,48,0.25)",
-            borderRadius: "12px",
-            color: "#e8a830",
-            fontFamily: "monospace",
-            fontSize: "10px",
-            fontWeight: 700,
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            cursor: "pointer",
-          }}
-        >
-          Track Order →
-        </button>
-      )}
+      {/* Track CTA — hidden if cancelled, disabled if no tracking */}
+      {!order.cancelledAt && order.financialStatus !== "VOIDED" && order.financialStatus !== "REFUNDED" && (() => {
+        const trackingNumbers = order.fulfillments?.flatMap(f => f.trackingInfo ?? []) ?? [];
+        const hasTracking = trackingNumbers.length > 0;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <button
+              onClick={hasTracking ? onTrack : undefined}
+              disabled={!hasTracking}
+              style={{
+                width: "100%",
+                padding: "16px",
+                background: hasTracking ? "rgba(232,168,48,0.08)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${hasTracking ? "rgba(232,168,48,0.25)" : "rgba(255,255,255,0.07)"}`,
+                borderRadius: "12px",
+                color: hasTracking ? "#e8a830" : "rgba(245,247,249,0.2)",
+                fontFamily: "monospace",
+                fontSize: "10px",
+                fontWeight: 700,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                cursor: hasTracking ? "pointer" : "not-allowed",
+              }}
+            >
+              {hasTracking ? "Track Order →" : "Tracking Not Available Yet"}
+            </button>
+            {hasTracking && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {trackingNumbers.map((t, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px" }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(232,168,48,0.6)" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.5)", flex: 1 }}>
+                      {t.number}
+                    </span>
+                    {t.url && (
+                      <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "monospace", fontSize: "9px", color: "#e8a830", letterSpacing: "0.08em", textDecoration: "none" }}>
+                        View →
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Cancel Order — only for pending/unfulfilled orders */}
       {isCancellable && <CancelOrderButton order={order} />}
@@ -2021,6 +2046,17 @@ function TrackOrderSidebar({
   onClose: () => void;
 }) {
   const [order, setOrder] = useState<Order>(initialOrder);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setLocationDenied(true),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }, []);
 
   const addr = order.shippingAddress;
   const isPaid = order.financialStatus === "PAID";
@@ -2073,7 +2109,12 @@ function TrackOrderSidebar({
     },
   ];
 
-  const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.02},${SHOP_LOCATION.lat - 0.02},${SHOP_LOCATION.lng + 0.02},${SHOP_LOCATION.lat + 0.02}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`;
+  const mapLat = userCoords ? (SHOP_LOCATION.lat + userCoords.lat) / 2 : SHOP_LOCATION.lat;
+  const mapLng = userCoords ? (SHOP_LOCATION.lng + userCoords.lng) / 2 : SHOP_LOCATION.lng;
+const latSpan = userCoords ? Math.abs(SHOP_LOCATION.lat - userCoords.lat) * 0.4 + 0.3 : 0.02;
+const lngSpan = userCoords ? Math.abs(SHOP_LOCATION.lng - userCoords.lng) * 0.4 + 0.3 : 0.02;
+  const zoom = userCoords ? 6 : 13;
+const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - lngSpan},${mapLat - latSpan},${mapLng + lngSpan},${mapLat + latSpan}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}&zoom=${zoom}`;
 
   return createPortal(
     <>
@@ -2329,6 +2370,24 @@ function TrackOrderSidebar({
               <StatusBadge label={order.financialStatus} />
               <StatusBadge label={order.fulfillmentStatus} />
             </div>
+
+            {/* Location permission banner */}
+            {locationDenied && (
+              <div style={{ background: "rgba(248,113,113,0.05)", border: "1px solid rgba(248,113,113,0.15)", borderRadius: "10px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <p style={{ fontFamily: "monospace", fontSize: "9px", color: "rgba(248,113,113,0.7)", letterSpacing: "0.04em", margin: 0, lineHeight: 1.5 }}>
+                  Location access denied. Enable it in your browser settings to see your position on the map.
+                </p>
+              </div>
+            )}
+            {userCoords && (
+              <div style={{ background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "10px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <p style={{ fontFamily: "monospace", fontSize: "9px", color: "rgba(74,222,128,0.7)", letterSpacing: "0.04em", margin: 0 }}>
+                  Your location detected — map updated.
+                </p>
+              </div>
+            )}
 
             {/* Shop origin */}
             <div
