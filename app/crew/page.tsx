@@ -497,17 +497,49 @@ function CalendarView({ events }: { events: CrewEvent[] }) {
         })}
       </div>
 
-      {/* Selected day events */}
+      {/* Selected day events — Modal */}
       {selectedEvents.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            paddingTop: "16px",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
+        <>
+          <div
+            onClick={() => setSelected(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(6px)",
+              zIndex: 99998,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(480px, calc(100vw - 48px))",
+              maxHeight: "80vh",
+              overflowY: "auto",
+              background: "#0d1117",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "18px",
+              padding: "28px",
+              zIndex: 99999,
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ fontFamily: "monospace", fontSize: "8px", fontWeight: 800, letterSpacing: "0.24em", textTransform: "uppercase", color: "rgba(245,247,249,0.3)" }}>
+                {selected}
+              </span>
+              <button
+                onClick={() => setSelected(null)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px", color: "rgba(245,247,249,0.5)", cursor: "pointer", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}
+              >
+                ✕
+              </button>
+            </div>
           {selectedEvents.map((ev) => {
             const t = TYPE_STYLES[ev.type];
             return (
@@ -589,7 +621,8 @@ function CalendarView({ events }: { events: CrewEvent[] }) {
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -1620,7 +1653,7 @@ export default function TheCrewPage() {
                 margin: 0,
               }}
             >
-              Run With <span style={{ color: "#e8a830" }}>Us.</span>
+              Join With <span style={{ color: "#e8a830" }}>Us.</span>
             </h2>
             <p
               style={{
@@ -1632,69 +1665,61 @@ export default function TheCrewPage() {
                 margin: 0,
               }}
             >
-              No gatekeeping. No subscription fee.
+              Get inside access to every Shoepreme project,
               <br />
-              Just real people running in real shoes.
+              drop, event, and update — before anyone else.
             </p>
             <div
               style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: "12px",
+                padding: "20px 24px",
                 display: "flex",
-                gap: "8px",
+                flexDirection: "column",
+                gap: "12px",
                 width: "100%",
-                flexWrap: "wrap",
+                boxSizing: "border-box",
               }}
             >
-              <input
-                type="email"
-                placeholder="your@email.com"
-                style={{
-                  flex: 1,
-                  minWidth: "180px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "2px",
-                  padding: "12px 16px",
-                  fontFamily: "monospace",
-                  fontSize: "11px",
-                  color: "#f5f7f9",
-                  letterSpacing: "0.05em",
-                  outline: "none",
-                }}
-              />
-              <button
-                style={{
-                  background: "#e8a830",
-                  color: "#0d1117",
-                  fontFamily: "monospace",
-                  fontSize: "9px",
-                  fontWeight: 700,
-                  letterSpacing: "0.22em",
-                  textTransform: "uppercase",
-                  padding: "12px 24px",
-                  borderRadius: "2px",
-                  border: "none",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                Join
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </button>
+              {[
+                "Exclusive project updates & drops",
+                "Behind-the-scenes content",
+                "Early access to new releases",
+                "Crew events & group runs",
+              ].map((perk, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#e8a830", flexShrink: 0, display: "block" }} />
+                  <span style={{ fontFamily: "monospace", fontSize: "10px", color: "rgba(245,247,249,0.45)", letterSpacing: "0.04em" }}>{perk}</span>
+                </div>
+              ))}
             </div>
+            
+             <a href="/account/login"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "100%",
+                background: "#e8a830",
+                color: "#0d1117",
+                fontFamily: "monospace",
+                fontSize: "10px",
+                fontWeight: 800,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                padding: "16px 24px",
+                borderRadius: "2px",
+                textDecoration: "none",
+                boxSizing: "border-box",
+              }}
+            >
+              Sign In to Join The Crew
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
             <p
               style={{
                 fontFamily: "monospace",
@@ -1704,7 +1729,7 @@ export default function TheCrewPage() {
                 margin: 0,
               }}
             >
-              Early access + event alerts. No spam.
+              Free to join. No subscription. Just create an account.
             </p>
           </div>
         </section>

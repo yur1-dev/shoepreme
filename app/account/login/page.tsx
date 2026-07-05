@@ -308,7 +308,27 @@ function LoginForm() {
         </div>
       )}
 
-      {error === "AccountDisabled" && (
+      {error === "SessionExpired" && (
+        <div
+          style={{
+            background: "rgba(232,168,48,0.07)",
+            border: "1px solid rgba(232,168,48,0.22)",
+            borderRadius: 10,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e8a830" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <p style={{ fontFamily: "monospace", fontSize: 10, color: "#e8a830", letterSpacing: "0.05em", margin: 0, lineHeight: 1.5 }}>
+            Your session has expired. Please sign in again.
+          </p>
+        </div>
+      )}
         <div
           style={{
             background: "rgba(248,113,113,0.08)",
@@ -343,7 +363,7 @@ function LoginForm() {
             </span>
           </div>
         </div>
-      )}
+    
 
       {showAppeal && (
         <AppealModal
@@ -444,12 +464,24 @@ export default function LoginPage() {
   useEffect(() => {
     if (status === "authenticated") {
       const params = new URLSearchParams(window.location.search);
+      const error = params.get("error");
+      // Don't redirect if there's an error — let the user see it
+      if (error) return;
       const isCheckout = params.get("checkout") === "1";
       router.replace(isCheckout ? "/?openCart=1" : "/account");
     }
   }, [status, router]);
 
-  if (status === "loading" || status === "authenticated") {
+  if (status === "loading") {
+    return <main style={{ minHeight: "100vh", background: "#0d1117" }} />;
+  }
+
+  // If authenticated but there's an error param, show the login page anyway
+  const hasError = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).has("error")
+    : false;
+
+  if (status === "authenticated" && !hasError) {
     return <main style={{ minHeight: "100vh", background: "#0d1117" }} />;
   }
 
