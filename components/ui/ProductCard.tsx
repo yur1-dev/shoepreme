@@ -26,7 +26,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const image = product.images.edges[0]?.node;
   const secondImage = product.images.edges[1]?.node;
   const firstVariant = product.variants.edges[0]?.node;
-  const isAvailable = firstVariant?.availableForSale ?? false;
+  const isAvailable = product.variants.edges.some((e) => e.node.availableForSale);
   const price = parseFloat(product.priceRange.minVariantPrice.amount);
   const comparePrice = product.compareAtPriceRange?.minVariantPrice?.amount
     ? parseFloat(product.compareAtPriceRange.minVariantPrice.amount)
