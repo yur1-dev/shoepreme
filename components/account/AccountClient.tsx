@@ -107,6 +107,7 @@ interface Order {
   shippingAddress?: Address | null;
   lineItems: { edges: { node: LineItemNode }[] };
   fulfillments?: { trackingInfo: { number: string; url?: string }[] }[];
+  tags?: string[];
 }
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
@@ -2059,14 +2060,22 @@ function TrackOrderSidebar({
   }, []);
 
   const addr = order.shippingAddress;
+  const tags: string[] = order.tags ?? [];
+  const isInProgressTag = tags.includes("in-progress");
+  const isDeliveredTag = tags.includes("delivered");
   const isPaid = order.financialStatus === "PAID";
   const isPending = order.financialStatus === "PENDING";
   const isVoided =
     order.financialStatus === "VOIDED" || order.financialStatus === "REFUNDED";
   const isFulfilled = order.fulfillmentStatus === "FULFILLED";
-  const isInProgress =
-    order.fulfillmentStatus === "IN_PROGRESS" ||
-    order.fulfillmentStatus === "PARTIALLY_FULFILLED";
+
+  // 0=placed, 1=awaiting payment, 2=preparing, 3=out for delivery, 4=delivered
+  let currentStage = 0;
+  if (isPending)                       currentStage = 1;
+  if (isPaid)                          currentStage = 2;
+  if (isPaid && isInProgressTag)       currentStage = 3;
+  if (isPaid && isFulfilled)           currentStage = 3; // fulfilled = out for delivery
+  if (isDeliveredTag)                  currentStage = 4; // delivered tag = delivered
 
   type StageStatus = "done" | "active" | "pending";
   const stages: {
@@ -2079,7 +2088,7 @@ function TrackOrderSidebar({
       label: "Order Placed",
       sub: "Your order has been received",
       time: formatDate(order.processedAt, true),
-      status: "done",
+      status: currentStage > 0 ? "done" : "active",
     },
     {
       label: "Payment Confirmed",
@@ -2089,23 +2098,22 @@ function TrackOrderSidebar({
           ? "Order voided"
           : "Payment has been verified",
       time: isPaid ? "Confirmed" : isPending ? "Pending" : undefined,
-      status: isPaid ? "done" : isPending ? "active" : "pending",
+      status: currentStage > 1 ? "done" : currentStage === 1 ? "active" : "pending",
     },
     {
       label: "Preparing Order",
       sub: "Store is packing your items",
-      status:
-        isFulfilled || isInProgress ? "done" : isPaid ? "active" : "pending",
+      status: currentStage > 2 ? "done" : currentStage === 2 ? "active" : "pending",
     },
     {
       label: "Out for Delivery",
       sub: "Your order is on the way",
-      status: isFulfilled ? "done" : isInProgress ? "active" : "pending",
+      status: currentStage >= 4 ? "done" : currentStage === 3 ? "active" : "pending",
     },
     {
       label: "Delivered",
       sub: "Order has been received",
-      status: isFulfilled ? "active" : "pending",
+      status: currentStage >= 4 ? "done" : currentStage === 3 ? "active" : "pending",
     },
   ];
 

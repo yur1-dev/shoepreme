@@ -85,6 +85,8 @@ export async function GET(request: NextRequest) {
     });
 
     const trackingMap: Record<string, { number: string; url?: string }[]> = {};
+    const tagsMap: Record<string, string[]> = {};
+    const cancelMap: Record<string, { cancelledAt: string | null; cancelReason: string | null }> = {};
 
     if (numericIds.length > 0) {
       try {
@@ -110,6 +112,9 @@ export async function GET(request: NextRequest) {
           query GetOrderTracking($id: ID!) {
             order(id: $id) {
               id
+              tags
+              cancelledAt
+              cancelReason
               fulfillments {
                 trackingInfo {
                   number
@@ -140,6 +145,11 @@ export async function GET(request: NextRequest) {
               if (adminOrder) {
                 const tracking = adminOrder.fulfillments?.flatMap((f: any) => f.trackingInfo ?? []) ?? [];
                 trackingMap[node.id] = tracking;
+                tagsMap[node.id] = adminOrder.tags ?? [];
+                cancelMap[node.id] = {
+                  cancelledAt: adminOrder.cancelledAt ?? null,
+                  cancelReason: adminOrder.cancelReason ?? null,
+                };
               }
             } catch (err) {
               console.error(`[orders] Failed to fetch tracking for ${node.id}:`, err);
@@ -157,8 +167,9 @@ export async function GET(request: NextRequest) {
       processedAt: node.processedAt,
       financialStatus: node.financialStatus,
       fulfillmentStatus: node.fulfillmentStatus ?? "UNFULFILLED",
-      cancelledAt: null,
-      cancelReason: null,
+      cancelledAt: cancelMap[node.id]?.cancelledAt ?? null,
+      cancelReason: cancelMap[node.id]?.cancelReason ?? null,
+      tags: tagsMap[node.id] ?? [],
       statusUrl: node.statusUrl,
       currentTotalPrice: node.currentTotalPrice,
       subtotalPrice: node.subtotalPrice ?? {
