@@ -10,9 +10,10 @@ async function connectDB() {
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   await connectDB();
-  await Staff.findByIdAndDelete(params.id);
+  await Staff.findByIdAndDelete(id);
   return NextResponse.json({ success: true });
 }
