@@ -2111,10 +2111,11 @@ function TrackOrderSidebar({
 
   const mapLat = userCoords ? (SHOP_LOCATION.lat + userCoords.lat) / 2 : SHOP_LOCATION.lat;
   const mapLng = userCoords ? (SHOP_LOCATION.lng + userCoords.lng) / 2 : SHOP_LOCATION.lng;
-const latSpan = userCoords ? Math.abs(SHOP_LOCATION.lat - userCoords.lat) * 0.4 + 0.3 : 0.02;
-const lngSpan = userCoords ? Math.abs(SHOP_LOCATION.lng - userCoords.lng) * 0.4 + 0.3 : 0.02;
-  const zoom = userCoords ? 6 : 13;
-const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - lngSpan},${mapLat - latSpan},${mapLng + lngSpan},${mapLat + latSpan}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}&zoom=${zoom}`;
+  const latSpan = userCoords ? Math.abs(SHOP_LOCATION.lat - userCoords.lat) * 0.6 + 0.5 : 0.02;
+  const lngSpan = userCoords ? Math.abs(SHOP_LOCATION.lng - userCoords.lng) * 0.6 + 0.5 : 0.02;
+  const osmSrc = userCoords
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - lngSpan},${mapLat - latSpan},${mapLng + lngSpan},${mapLat + latSpan}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`
+    : `https://www.openstreetmap.org/export/embed.html?bbox=${SHOP_LOCATION.lng - 0.02},${SHOP_LOCATION.lat - 0.02},${SHOP_LOCATION.lng + 0.02},${SHOP_LOCATION.lat + 0.02}&layer=mapnik&marker=${SHOP_LOCATION.lat},${SHOP_LOCATION.lng}`;
 
   return createPortal(
     <>
@@ -2263,10 +2264,96 @@ const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - 
                 border: 0,
                 display: "block",
                 filter: "brightness(0.68) saturate(0.75)",
+                pointerEvents: "none",
               }}
               loading="lazy"
               title="Shop location"
             />
+            {/* User location pin — calculated from bbox */}
+            {userCoords && (() => {
+              const minLng = mapLng - lngSpan;
+              const maxLng = mapLng + lngSpan;
+              const minLat = mapLat - latSpan;
+              const maxLat = mapLat + latSpan;
+              const leftPct = ((userCoords.lng - minLng) / (maxLng - minLng)) * 100;
+              const topPct = ((maxLat - userCoords.lat) / (maxLat - minLat)) * 100;
+              return (
+              <div
+                style={{
+                  position: "absolute",
+                  top: `${topPct}%`,
+                  left: `${leftPct}%`,
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ position: "relative", width: "20px", height: "20px" }}>
+                  <div style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background: "rgba(74,127,165,0.3)",
+                    animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                  }} />
+                  <div style={{
+                    position: "absolute",
+                    inset: "4px",
+                    borderRadius: "50%",
+                    background: "#4a7fa5",
+                    border: "2px solid #fff",
+                  }} />
+                </div>
+                <span style={{
+                  fontFamily: "monospace",
+                  fontSize: "6px",
+                  color: "#fff",
+                  background: "rgba(74,127,165,0.85)",
+                  padding: "1px 5px",
+                  borderRadius: "4px",
+                  marginTop: "2px",
+                  letterSpacing: "0.06em",
+                  whiteSpace: "nowrap",
+                }}>You</span>
+              </div>
+              );
+            })()}
+            {/* Shop pin */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -65%)",
+                pointerEvents: "none",
+              }}
+            >
+              <div style={{ position: "relative", width: "28px", height: "28px" }}>
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: "50%",
+                  background: "rgba(232,168,48,0.25)",
+                  animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
+                }} />
+                <div style={{
+                  position: "absolute",
+                  inset: "5px",
+                  borderRadius: "50%",
+                  background: "#e8a830",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }} >
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="#0d1117">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" stroke="#0d1117" strokeWidth="1.5" fill="none" />
+                  </svg>
+                </div>
+              </div>
+            </div>
             <div
               style={{
                 position: "absolute",
@@ -2279,56 +2366,7 @@ const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - 
                 pointerEvents: "none",
               }}
             />
-            {/* Pulsing pin */}
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -65%)",
-                pointerEvents: "none",
-              }}
-            >
-              <div
-                style={{ position: "relative", width: "32px", height: "32px" }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    borderRadius: "50%",
-                    background: "rgba(232,168,48,0.22)",
-                    animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "6px",
-                    borderRadius: "50%",
-                    background: "#e8a830",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="#0d1117"
-                  >
-                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                    <polyline
-                      points="9 22 9 12 15 12 15 22"
-                      stroke="#0d1117"
-                      strokeWidth="1.5"
-                      fill="none"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
+            
             {/* Order number badge */}
             <div
               style={{

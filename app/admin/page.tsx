@@ -612,9 +612,15 @@ export default function AdminOrdersPage() {
                     !isFulfilled &&
                     order.displayFinancialStatus !== "PAID";
                   const onHold = order.displayFulfillmentStatus === "ON_HOLD";
+                  const fulfillmentOrderStatuses =
+                    order.fulfillmentOrders?.edges?.map(
+                      (e: any) => e.node.status
+                    ) ?? [];
                   const inProgress =
                     order.displayFulfillmentStatus === "IN_PROGRESS" ||
-                    (order.tags ?? []).includes("in-progress");
+                    (order.tags ?? []).includes("in-progress") ||
+                    localInProgress.has(order.id) ||
+                    fulfillmentOrderStatuses.includes("IN_PROGRESS");
                   const isDelivered = (order.tags ?? []).includes("delivered");
                   const addressLines = formatAddress(order.shippingAddress);
                   const items =
@@ -1257,29 +1263,31 @@ export default function AdminOrdersPage() {
                               {!isVoided &&
                                 order.displayFinancialStatus === "PAID" &&
                                 (isFulfilled ? (
-                                  <>
-                                    <ActionButton
-                                      onClick={(e: any) => {
-                                        e.stopPropagation();
-                                        setTrackingOrder(order);
-                                      }}
-                                      disabled={isBusy}
-                                      variant="ghost"
-                                      small
-                                    >
-                                      + Tracking
-                                    </ActionButton>
-                                    <ActionButton
-                                      onClick={(e: any) =>
-                                        handleMarkDelivered(e, order.id)
-                                      }
-                                      disabled={isBusy}
-                                      variant="green"
-                                      small
-                                    >
-                                      {isBusy ? "…" : "Delivered"}
-                                    </ActionButton>
-                                  </>
+                                  isDelivered ? null : (
+                                    <>
+                                      <ActionButton
+                                        onClick={(e: any) => {
+                                          e.stopPropagation();
+                                          setTrackingOrder(order);
+                                        }}
+                                        disabled={isBusy}
+                                        variant="ghost"
+                                        small
+                                      >
+                                        + Tracking
+                                      </ActionButton>
+                                      <ActionButton
+                                        onClick={(e: any) =>
+                                          handleMarkDelivered(e, order.id)
+                                        }
+                                        disabled={isBusy}
+                                        variant="green"
+                                        small
+                                      >
+                                        {isBusy ? "…" : "Delivered"}
+                                      </ActionButton>
+                                    </>
+                                  )
                                 ) : (
                                   <ActionButton
                                     onClick={(e: any) =>

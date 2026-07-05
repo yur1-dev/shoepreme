@@ -288,6 +288,13 @@ export async function getOrders(first = 20) {
                 url
               }
             }
+            fulfillmentOrders(first: 5) {
+              edges {
+                node {
+                  status
+                }
+              }
+            }
           }
         }
       }
@@ -1437,6 +1444,21 @@ export async function createDraftOrder(input: {
 }
 // Add to lib/shopify-admin.ts
 
+function getTrackingUrl(carrier: string, trackingNumber: string): string {
+  const c = carrier.toLowerCase();
+  if (c.includes("j&t") || c.includes("jnt") || c.includes("j and t"))
+    return `https://www.jtexpress.ph/trajectoryQuery?billCode=${trackingNumber}`;
+  if (c.includes("lbc"))
+    return `https://www.lbcexpress.com/track/?tracking_no=${trackingNumber}`;
+  if (c.includes("ninja"))
+    return `https://track.ninjavan.co/ph/${trackingNumber}`;
+  if (c.includes("grab"))
+    return `https://tracking.grab.com/${trackingNumber}`;
+  if (c.includes("flash"))
+    return `https://www.flashexpress.com.ph/tracking/?se=${trackingNumber}`;
+  return `https://www.jtexpress.ph/trajectoryQuery?billCode=${trackingNumber}`;
+}
+
 export async function addTrackingToOrder(
   orderId: string,
   carrier: string,
@@ -1474,6 +1496,7 @@ export async function addTrackingToOrder(
       trackingInfoInput: {
         company: carrier,
         numbers: [number],
+        urls: [getTrackingUrl(carrier, number)],
       },
     },
   );
@@ -1521,6 +1544,8 @@ export async function markOrderDelivered(orderId: string) {
 
   const errors = data?.data?.fulfillmentEventCreate?.userErrors;
   if (errors?.length) return { success: false, error: errors[0].message };
+
+  await addOrderTag(orderId, "delivered");
   return { success: true };
 }
 export async function publishToOnlineStore(productId: string) {
