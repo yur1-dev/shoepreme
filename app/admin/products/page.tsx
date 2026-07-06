@@ -315,6 +315,15 @@ function ProductModal({
   const oos = product ? product.totalInventory === 0 : false;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingSize, setAddingSize] = useState(false);
+  const [localCollections, setLocalCollections] = useState(
+    product?.collections?.edges ?? [],
+  );
+  const [pendingCollections, setPendingCollections] = useState<string[]>([]);
+
+  useEffect(() => {
+    setLocalCollections(product?.collections?.edges ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   const CATEGORY_OPTIONS = [
     "Men",
@@ -591,7 +600,6 @@ function ProductModal({
               : "",
             status: draft.status,
             productType: "",
-            collection: draft.productType,
           }),
         });
         const d1 = await safeJson(r1);
@@ -665,6 +673,15 @@ function ProductModal({
           imageFailures += await flushPendingImageChanges(product.id);
         }
         imageFailures += await flushFeaturedSelection(product.id);
+
+        for (const colTitle of pendingCollections) {
+          await fetch("/api/admin/add-to-collection", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: product.id, collectionTitle: colTitle }),
+          });
+        }
+        setPendingCollections([]);
 
         if (imageFailures > 0) {
           showToast(
@@ -1255,11 +1272,11 @@ function ProductModal({
                     </p>
                   </div>
                 )}
-                {(product.collections?.edges?.length ?? 0) > 0 && (
+                {localCollections.length > 0 && (
                   <div>
                     <FieldLabel>Collections</FieldLabel>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {product.collections.edges.map((e: any) => (
+                      {localCollections.map((e: any) => (
                         <span
                           key={e.node.id}
                           style={{
@@ -1286,7 +1303,12 @@ function ProductModal({
                               const data = await res.json();
                               if (data.success) {
                                 showToast("Removed from collection ✓");
-                                onSizeAdded(product.id);
+                                setLocalCollections((prev: any[]) =>
+                                  prev.filter((c: any) => c.node.id !== e.node.id),
+                                );
+                                if (draft.productType === e.node.title) {
+                                  upd("productType", "");
+                                }
                               } else {
                                 showToast("Failed: " + data.error, false);
                               }
@@ -1333,11 +1355,15 @@ function ProductModal({
               <FieldLabel>Category</FieldLabel>
               {!useCustomCategory ? (
                 <select
-                  value={draft.productType}
+                  value={isEdit ? "" : draft.productType}
                   onChange={(e) => {
                     if (e.target.value === "__other__") {
                       setUseCustomCategory(true);
                       upd("productType", "");
+                    } else if (isEdit && e.target.value) {
+                      if (!pendingCollections.includes(e.target.value)) {
+                        setPendingCollections((prev) => [...prev, e.target.value]);
+                      }
                     } else {
                       upd("productType", e.target.value);
                     }
@@ -1426,6 +1452,51 @@ function ProductModal({
               )}
             </div>
           </div>
+
+          {isEdit && pendingCollections.length > 0 && (
+            <div>
+              <FieldLabel>Will be added on Save</FieldLabel>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {pendingCollections.map((col) => (
+                  <span
+                    key={col}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      background: "rgba(232,168,48,0.08)",
+                      border: "1px solid rgba(232,168,48,0.3)",
+                      borderRadius: 5,
+                      padding: "3px 6px 3px 8px",
+                      fontFamily: "monospace",
+                      fontSize: 9,
+                      color: "#e8a830",
+                    }}
+                  >
+                    + {col}
+                    <button
+                      onClick={() =>
+                        setPendingCollections((prev) => prev.filter((c) => c !== col))
+                      }
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "rgba(232,168,48,0.6)",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        lineHeight: 1,
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div>
