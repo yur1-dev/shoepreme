@@ -161,7 +161,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const url = new URL(cart.checkoutUrl);
     url.searchParams.set(
       "return_to",
-      process.env.NEXT_PUBLIC_APP_URL ?? "https://shoepreme.vercel.app",
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://shoepreme-k.com",
     );
     window.location.href = url.toString();
   }, [cart]);
