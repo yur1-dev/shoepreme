@@ -14,7 +14,19 @@ export async function PATCH(
 
     const updated = await CrewEvent.findByIdAndUpdate(
       id,
-      { title, isoDate, location, type, description },
+      {
+        $set: {
+          title,
+          isoDate,
+          time: body.time ?? "",
+          location,
+          lat: body.lat ? parseFloat(body.lat) : undefined,
+          lng: body.lng ? parseFloat(body.lng) : undefined,
+          type,
+          description: description ?? "",
+          registrationUrl: body.registrationUrl ?? "",
+        },
+      },
       { new: true },
     );
 

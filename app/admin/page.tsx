@@ -43,7 +43,7 @@ function formatAddress(addr: any) {
   ].filter(Boolean);
 }
 
-type FilterVal = "ALL" | "UNFULFILLED" | "PENDING" | "FULFILLED" | "PAID";
+type FilterVal = "ALL" | "UNFULFILLED" | "PENDING" | "FULFILLED" | "PAID" | "ON_HOLD";
 
 type PaymentMethod = "Pay In-Store (Cash)" | "GCash" | "Other";
 
@@ -73,6 +73,8 @@ export default function AdminOrdersPage() {
   const [cancelConfirmOrder, setCancelConfirmOrder] = useState<any | null>(
     null,
   );
+  const [holdOrder, setHoldOrder] = useState<any | null>(null);
+  const [holdReason, setHoldReason] = useState("");
   const [localInProgress, setLocalInProgress] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem("shoepreme_inprogress");
@@ -182,6 +184,12 @@ export default function AdminOrdersPage() {
     status: "IN_PROGRESS" | "ON_HOLD" | "RELEASE_HOLD",
   ) {
     e.stopPropagation();
+    if (status === "ON_HOLD") {
+      const order = orders.find((o) => o.id === orderId);
+      setHoldOrder(order);
+      setHoldReason("");
+      return;
+    }
     setActionLoading(orderId);
     try {
       const res = await fetch("/api/admin/set-order-status", {
@@ -192,6 +200,30 @@ export default function AdminOrdersPage() {
       const data = await res.json();
       data.success
         ? showToast(`Order updated ✓`)
+        : showToast("Failed: " + data.error, false);
+      if (data.success) {
+        await handleClearProgress(orderId);
+        await fetchOrders();
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleConfirmHold() {
+    if (!holdOrder) return;
+    const orderId = holdOrder.id;
+    setHoldOrder(null);
+    setActionLoading(orderId);
+    try {
+      const res = await fetch("/api/admin/set-order-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status: "ON_HOLD", reason: holdReason.trim() }),
+      });
+      const data = await res.json();
+      data.success
+        ? showToast("Order placed on hold ✓")
         : showToast("Failed: " + data.error, false);
       if (data.success) {
         await handleClearProgress(orderId);
@@ -332,6 +364,9 @@ export default function AdminOrdersPage() {
       o.displayFulfillmentStatus === "UNFULFILLED" ||
       o.displayFulfillmentStatus === "PARTIALLY_FULFILLED",
   );
+  const onHoldOrders = orders.filter(
+    (o) => o.displayFulfillmentStatus === "ON_HOLD",
+  );
   function handlePrintPackingSlip(order: any) {
     const addressLines = formatAddress(order.shippingAddress) || [];
     const items = order.lineItems?.edges?.map((e: any) => e.node) ?? [];
@@ -402,6 +437,8 @@ export default function AdminOrdersPage() {
       list = list.filter((o) => o.displayFulfillmentStatus === "FULFILLED");
     if (filter === "PAID")
       list = list.filter((o) => o.displayFinancialStatus === "PAID");
+    if (filter === "ON_HOLD")
+      list = list.filter((o) => o.displayFulfillmentStatus === "ON_HOLD");
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -517,6 +554,7 @@ export default function AdminOrdersPage() {
                 count: unfulfilled.length,
               },
               { label: "Pending", value: "PENDING", count: pending.length },
+              { label: "On Hold", value: "ON_HOLD", count: onHoldOrders.length },
               {
                 label: "Fulfilled",
                 value: "FULFILLED",
@@ -722,7 +760,11 @@ export default function AdminOrdersPage() {
 
                         <StatusPill label={order.displayFinancialStatus} />
                         {!isMobile && (
-                          <StatusPill label={order.displayFulfillmentStatus} />
+                          <StatusPill label={
+                            inProgress ? "IN_PROGRESS" :
+                            isDelivered ? "DELIVERED" :
+                            order.displayFulfillmentStatus
+                          } />
                         )}
 
                         {!isMobile && (
@@ -1390,6 +1432,33 @@ export default function AdminOrdersPage() {
                               </p>
                             </div>
 
+                            {onHold && order.holdReason && (
+                              <div>
+                                <FieldLabel>Hold Reason</FieldLabel>
+                                <div
+                                  style={{
+                                    background: "rgba(167,139,250,0.05)",
+                                    border: "1px solid rgba(167,139,250,0.15)",
+                                    borderRadius: 10,
+                                    padding: "10px 14px",
+                                  }}
+                                >
+                                  <p
+                                    style={{
+                                      fontFamily: "monospace",
+                                      fontSize: 11,
+                                      color: "rgba(167,139,250,0.85)",
+                                      margin: 0,
+                                      letterSpacing: "0.03em",
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    {order.holdReason}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             {isVoided && (
                               <div>
                                 <FieldLabel>Cancellation Reason</FieldLabel>
@@ -2030,6 +2099,125 @@ export default function AdminOrdersPage() {
                 }}
               >
                 Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Hold Reason Modal ── */}
+      {holdOrder && (
+        <>
+          <div
+            onClick={() => setHoldOrder(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(6px)",
+              zIndex: 99998,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(420px, calc(100vw - 48px))",
+              background: "#0d1117",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "18px",
+              padding: "28px",
+              zIndex: 99999,
+              display: "flex",
+              flexDirection: "column",
+              gap: "18px",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "8px",
+                  fontWeight: 800,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(167,139,250,0.6)",
+                  margin: "0 0 3px",
+                }}
+              >
+                Place on Hold — {holdOrder.name}
+              </p>
+              <h3
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "1.5rem",
+                  letterSpacing: "0.05em",
+                  color: "#f0f4f8",
+                  margin: 0,
+                }}
+              >
+                Why is this order on hold?
+              </h3>
+            </div>
+            <textarea
+              value={holdReason}
+              onChange={(e) => setHoldReason(e.target.value)}
+              placeholder="e.g. Waiting for stock confirmation, payment issue…"
+              rows={4}
+              style={{
+                width: "100%",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                padding: "10px 12px",
+                color: "#f5f7f9",
+                fontFamily: "Poppins, sans-serif",
+                fontSize: 12,
+                outline: "none",
+                resize: "vertical",
+                boxSizing: "border-box",
+              }}
+            />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => setHoldOrder(null)}
+                style={{
+                  flex: 1,
+                  padding: "13px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "10px",
+                  color: "rgba(240,244,248,0.4)",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmHold}
+                style={{
+                  flex: 2,
+                  padding: "13px",
+                  background: "#a78bfa",
+                  border: "none",
+                  borderRadius: "10px",
+                  color: "#0d1117",
+                  fontFamily: "monospace",
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                }}
+              >
+                Confirm Hold
               </button>
             </div>
           </div>

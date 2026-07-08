@@ -85,6 +85,8 @@ export async function GET(request: NextRequest) {
     });
 
     const trackingMap: Record<string, { number: string; url?: string }[]> = {};
+    const tagsMap: Record<string, string[]> = {};
+    const cancelMap: Record<string, { cancelledAt: string | null; cancelReason: string | null }> = {};
 
     if (numericIds.length > 0) {
       try {
@@ -110,6 +112,9 @@ export async function GET(request: NextRequest) {
           query GetOrderTracking($id: ID!) {
             order(id: $id) {
               id
+              tags
+              cancelledAt
+              cancelReason
               fulfillments {
                 trackingInfo {
                   number
@@ -140,6 +145,11 @@ export async function GET(request: NextRequest) {
               if (adminOrder) {
                 const tracking = adminOrder.fulfillments?.flatMap((f: any) => f.trackingInfo ?? []) ?? [];
                 trackingMap[node.id] = tracking;
+                tagsMap[node.id] = adminOrder.tags ?? [];
+                cancelMap[node.id] = {
+                  cancelledAt: adminOrder.cancelledAt ?? null,
+                  cancelReason: adminOrder.cancelReason ?? null,
+                };
               }
             } catch (err) {
               console.error(`[orders] Failed to fetch tracking for ${node.id}:`, err);
@@ -157,8 +167,9 @@ export async function GET(request: NextRequest) {
       processedAt: node.processedAt,
       financialStatus: node.financialStatus,
       fulfillmentStatus: node.fulfillmentStatus ?? "UNFULFILLED",
-      cancelledAt: null,
-      cancelReason: null,
+      cancelledAt: cancelMap[node.id]?.cancelledAt ?? null,
+      cancelReason: cancelMap[node.id]?.cancelReason ?? null,
+      tags: tagsMap[node.id] ?? [],
       statusUrl: node.statusUrl,
       currentTotalPrice: node.currentTotalPrice,
       subtotalPrice: node.subtotalPrice ?? {
@@ -190,6 +201,46 @@ export async function GET(request: NextRequest) {
         return tracking.length > 0 ? [{ trackingInfo: tracking }] : [];
       })(),
     }));
+
+    // Merge custom cancel reasons from MongoDB
+    try {
+      const { connectToDatabase } = await import("@/lib/mongodb");
+      const { default: mongoose } = await import("mongoose");
+      await connectToDatabase();
+
+      delete mongoose.models.CancelRequest;
+      const CancelRequest = mongoose.model(
+        "CancelRequest",
+        new mongoose.Schema({
+          orderId: String,
+          reason: { type: String, default: null },
+        }),
+      );
+
+      const numericOrderIds = orders.map((o: any) =>
+        o.id.split("/").pop()?.split("?")[0],
+      ).filter(Boolean);
+
+      const records = await CancelRequest.find({
+        orderId: { $in: numericOrderIds },
+      }).lean();
+
+      const reasonMap = new Map(
+        records.map((r: any) => [r.orderId, r.reason]),
+      );
+
+      const ordersWithReasons = orders.map((o: any) => {
+        const numericId = o.id.split("/").pop()?.split("?")[0];
+        return {
+          ...o,
+          customCancelReason: reasonMap.get(numericId) ?? null,
+        };
+      });
+
+      return NextResponse.json({ orders: ordersWithReasons });
+    } catch (err) {
+      console.error("[orders] Failed to merge custom cancel reasons:", err);
+    }
 
     return NextResponse.json({ orders });
   } catch (err) {

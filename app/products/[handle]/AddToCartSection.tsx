@@ -251,8 +251,18 @@ export default function AddToCartSection({
             if (buyingNow) return;
             setBuyingNow(true);
             try {
-              await addToCart(selectedVariant.id, quantity);
-              checkout();
+              const updatedCart = await addToCart(selectedVariant.id, quantity, false);
+              if (!updatedCart?.checkoutUrl) return;
+              const res = await fetch("/api/auth/session");
+              const session = await res.json();
+              if (!session?.user) {
+                const returnPath = window.location.pathname;
+                window.location.href = `/account/login?checkout=1&return_to=${encodeURIComponent(returnPath)}`;
+                return;
+              }
+              const url = new URL(updatedCart.checkoutUrl);
+              url.searchParams.set("return_to", process.env.NEXT_PUBLIC_APP_URL ?? "https://shoepreme.vercel.app");
+              window.location.href = url.toString();
             } finally {
               setBuyingNow(false);
             }

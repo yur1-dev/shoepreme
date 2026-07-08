@@ -31,9 +31,13 @@ export async function POST(req: NextRequest) {
     const created = await CrewEvent.create({
       title,
       isoDate,
+      time: body.time ?? "",
       location,
+      lat: body.lat ? parseFloat(body.lat) : undefined,
+      lng: body.lng ? parseFloat(body.lng) : undefined,
       type,
       description: description ?? "",
+      registrationUrl: body.registrationUrl ?? "",
     });
 
     return NextResponse.json({ success: true, event: created });

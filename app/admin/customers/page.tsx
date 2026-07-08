@@ -17,10 +17,8 @@ import { useLayoutMode as useLayoutModeRaw } from "@/lib/use-layout-mode";
 
 function useLayoutMode() {
   const layout = useLayoutModeRaw();
-  return {
-    ...layout,
-    mode: layout.isMobile ? "mobile" : layout.isTablet ? "tablet" : "desktop",
-  };
+  const mode = layout.isMobile ? "mobile" : layout.isTablet ? "tablet" : "desktop";
+  return useMemo(() => ({ ...layout, mode }), [layout.isMobile, layout.isTablet]);
 }
 
 function formatPrice(amount: string, currency: string) {

@@ -36,6 +36,7 @@ export async function GET(req: Request) {
               displayFinancialStatus
               displayFulfillmentStatus
               cancelledAt
+              cancelReason
               totalPriceSet { shopMoney { amount currencyCode } }
               paymentGatewayNames
               customer { id email }
@@ -57,14 +58,8 @@ export async function GET(req: Request) {
     );
 
     if (data.errors) {
-      console.error(
-        "[analytics] Shopify errors:",
-        JSON.stringify(data.errors, null, 2),
-      );
-      return NextResponse.json(
-        { error: "Shopify query failed" },
-        { status: 500 },
-      );
+      console.error("[analytics] Shopify errors:", JSON.stringify(data.errors, null, 2));
+      return NextResponse.json({ error: "Shopify query failed" }, { status: 500 });
     }
 
     const orders = (data?.data?.orders?.edges ?? []).map((e: any) => e.node);
@@ -73,20 +68,29 @@ export async function GET(req: Request) {
     let totalRevenue = 0;
     let paidCount = 0;
 
+    // Financial status counts
     const statusCounts: Record<string, number> = {
       PENDING: 0,
       PAID: 0,
       REFUNDED: 0,
       VOIDED: 0,
+      PARTIALLY_REFUNDED: 0,
       OTHER: 0,
     };
+
+    // Fulfillment status counts
     const fulfillCounts: Record<string, number> = {
       UNFULFILLED: 0,
       IN_PROGRESS: 0,
       ON_HOLD: 0,
       FULFILLED: 0,
+      RESTOCKED: 0,
       OTHER: 0,
     };
+
+    // Cancelled orders (has cancelledAt regardless of financial status)
+    let cancelledCount = 0;
+
     const paymentMethods: Record<string, number> = {};
     const productStats: Record<string, { units: number; revenue: number }> = {};
     const customerOrderCounts: Record<string, number> = {};
@@ -94,34 +98,44 @@ export async function GET(req: Request) {
     for (const o of orders) {
       const amount = parseFloat(o.totalPriceSet?.shopMoney?.amount ?? "0");
       const day = o.createdAt?.slice(0, 10);
-      const isVoided = !!o.cancelledAt;
+      const fs = o.displayFinancialStatus as string;
+      const ffs = o.displayFulfillmentStatus as string;
+      const isCancelled = !!o.cancelledAt;
 
-      if (o.displayFinancialStatus === "PAID" && !isVoided) {
+      // Count cancelled
+      if (isCancelled) cancelledCount += 1;
+
+      // Revenue — only PAID and not cancelled
+      if (fs === "PAID" && !isCancelled) {
         totalRevenue += amount;
         paidCount += 1;
         revenueByDay[day] = (revenueByDay[day] ?? 0) + amount;
       }
 
-      const fs = o.displayFinancialStatus;
+      // Financial status
       if (statusCounts[fs] !== undefined) statusCounts[fs] += 1;
       else statusCounts.OTHER += 1;
 
-      const ffs = o.displayFulfillmentStatus;
-      if (fulfillCounts[ffs] !== undefined) fulfillCounts[ffs] += 1;
-      else fulfillCounts.OTHER += 1;
+      // Fulfillment status — only count non-cancelled orders
+      if (!isCancelled) {
+        if (fulfillCounts[ffs] !== undefined) fulfillCounts[ffs] += 1;
+        else fulfillCounts.OTHER += 1;
+      }
 
+      // Payment methods
       const gw = o.paymentGatewayNames?.[0] || "Unspecified";
       paymentMethods[gw] = (paymentMethods[gw] ?? 0) + 1;
 
-      for (const li of o.lineItems?.edges ?? []) {
-        const item = li.node;
-        const unitPrice = parseFloat(
-          item.originalUnitPriceSet?.shopMoney?.amount ?? "0",
-        );
-        if (!productStats[item.title])
-          productStats[item.title] = { units: 0, revenue: 0 };
-        productStats[item.title].units += item.quantity;
-        productStats[item.title].revenue += unitPrice * item.quantity;
+      // Product stats — skip cancelled/voided/refunded
+      if (!isCancelled && fs !== "VOIDED" && fs !== "REFUNDED") {
+        for (const li of o.lineItems?.edges ?? []) {
+          const item = li.node;
+          const unitPrice = parseFloat(item.originalUnitPriceSet?.shopMoney?.amount ?? "0");
+          if (!productStats[item.title])
+            productStats[item.title] = { units: 0, revenue: 0 };
+          productStats[item.title].units += item.quantity;
+          productStats[item.title].revenue += unitPrice * item.quantity;
+        }
       }
 
       const custId = o.customer?.id;
@@ -146,9 +160,7 @@ export async function GET(req: Request) {
       ([name, count]) => ({ name, count }),
     );
 
-    const returningCustomers = Object.values(customerOrderCounts).filter(
-      (c) => c > 1,
-    ).length;
+    const returningCustomers = Object.values(customerOrderCounts).filter((c) => c > 1).length;
     const totalCustomers = Object.keys(customerOrderCounts).length;
 
     const draftData = await adminFetch(`
@@ -172,6 +184,7 @@ export async function GET(req: Request) {
       revenueTrend,
       statusCounts,
       fulfillCounts,
+      cancelledCount,
       paymentBreakdown,
       topProducts,
       customers: { total: totalCustomers, returning: returningCustomers },
@@ -184,13 +197,11 @@ export async function GET(req: Request) {
         currency: o.totalPriceSet?.shopMoney?.currencyCode,
         financialStatus: o.displayFinancialStatus,
         fulfillmentStatus: o.displayFulfillmentStatus,
+        cancelledAt: o.cancelledAt,
       })),
     });
   } catch (err) {
     console.error("[GET /api/admin/analytics]", err);
-    return NextResponse.json(
-      { error: "Failed to load analytics" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to load analytics" }, { status: 500 });
   }
 }

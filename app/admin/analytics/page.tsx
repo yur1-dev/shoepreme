@@ -485,14 +485,18 @@ export default function AdminAnalyticsPage() {
     return Object.entries(buckets).map(([name, count]) => ({ name, count }));
   }, [data]);
 
-  const funnelData = data
-    ? [
-        { stage: "Pending", value: data.statusCounts.PENDING },
-        { stage: "Paid", value: data.statusCounts.PAID },
-        { stage: "Unfulfilled", value: data.fulfillCounts.UNFULFILLED },
-        { stage: "Fulfilled", value: data.fulfillCounts.FULFILLED },
-      ]
-    : [];
+ const funnelData = data
+  ? [
+      { stage: "Pending", value: data.statusCounts.PENDING },
+      { stage: "Paid", value: data.statusCounts.PAID },
+      { stage: "Unfulfilled", value: data.fulfillCounts.UNFULFILLED },
+      { stage: "In Progress", value: data.fulfillCounts.IN_PROGRESS },
+      { stage: "Fulfilled", value: data.fulfillCounts.FULFILLED },
+      { stage: "Refunded", value: data.statusCounts.REFUNDED },
+      { stage: "Voided", value: data.statusCounts.VOIDED },
+      { stage: "Cancelled", value: data.cancelledCount },
+    ].filter((d) => d.value > 0)
+  : [];
 
   const preOrderConversion =
     data?.preOrders?.total > 0

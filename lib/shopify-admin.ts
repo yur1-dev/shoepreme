@@ -1,6 +1,6 @@
 const SHOPIFY_ADMIN_URL = `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/graphql.json`;
 
-async function adminFetch(query: string, variables?: Record<string, unknown>) {
+export async function adminFetch(query: string, variables?: Record<string, unknown>) {
   const res = await fetch(SHOPIFY_ADMIN_URL, {
     method: "POST",
     headers: {
@@ -219,99 +219,58 @@ export async function cancelOrder(orderId: string) {
   return { success: true };
 }
 
-export async function getOrders(first = 20) {
-  const data = await adminFetch(
-    `
-    query getOrders($first: Int!) {
-      orders(first: $first, sortKey: CREATED_AT, reverse: true) {
-        edges {
-          node {
-            id
-            name
-            createdAt
-            displayFinancialStatus
-            displayFulfillmentStatus
-            tags
-            cancelledAt
-            cancelReason
-            paymentGatewayNames
-            customer {
-              displayName
-              email
-              phone
-            }
-            shippingAddress {
-              address1
-              address2
-              city
-              province
-              provinceCode
-              zip
-              country
-              phone
-            }
-            totalPriceSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
-            }
-            lineItems(first: 10) {
-              edges {
-                node {
-                  title
-                  quantity
-                  originalUnitPriceSet {
-                    shopMoney {
-                      amount
-                      currencyCode
-                    }
-                  }
-                  variant {
-                    image {
-                      url
-                      altText
-                    }
-                    product {
-                      featuredImage {
-                        url
-                        altText
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            fulfillments(first: 5) {
-              trackingInfo {
-                number
-                url
-              }
-            }
-            fulfillmentOrders(first: 5) {
-              edges {
-                node {
-                  status
-                }
-              }
-            }
-          }
+export async function getOrders() {
+  const ORDER_FIELDS = `
+    id name createdAt cancelledAt cancelReason
+    displayFulfillmentStatus displayFinancialStatus
+    tags paymentGatewayNames
+    totalPriceSet { shopMoney { amount currencyCode } }
+    customer { displayName email phone }
+    shippingAddress { address1 address2 city province provinceCode zip country phone }
+    lineItems(first: 10) {
+      edges { node {
+        title quantity
+        originalUnitPriceSet { shopMoney { amount currencyCode } }
+        variant {
+          image { url altText }
+          product { featuredImage { url altText } }
         }
+      }}
+    }
+    fulfillments(first: 5) { trackingInfo { number url } }
+    fulfillmentOrders(first: 5) { edges { node { status } } }
+  `;
+
+  const query = `
+    query GetOrders($cursor: String) {
+      orders(first: 250, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+        pageInfo { hasNextPage endCursor }
+        edges { node { ${ORDER_FIELDS} } }
       }
     }
-  `,
-    { first },
-  );
+  `;
 
-  if (data.errors) {
-    console.error(
-      "Shopify orders query error:",
-      JSON.stringify(data.errors, null, 2),
-    );
-    return [];
+  let allOrders: any[] = [];
+  let cursor: string | null = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const data = await adminFetch(query, { cursor });
+
+    if (data.errors) {
+      console.error("Shopify orders query error:", JSON.stringify(data.errors, null, 2));
+      break;
+    }
+
+    const page = data?.data?.orders;
+    if (!page) break;
+
+    allOrders = allOrders.concat(page.edges.map((e: any) => e.node));
+    hasNextPage = page.pageInfo.hasNextPage;
+    cursor = page.pageInfo.endCursor;
   }
 
-  const orders = data?.data?.orders?.edges?.map((e: any) => e.node) ?? [];
+  const orders = allOrders;
 
   // Merge custom cancel reasons from MongoDB
   try {

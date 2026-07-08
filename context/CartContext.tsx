@@ -49,7 +49,7 @@ interface CartContextType {
   isLoading: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addToCart: (merchandiseId: string, quantity?: number) => Promise<void>;
+  addToCart: (merchandiseId: string, quantity?: number, openCartAfter?: boolean) => Promise<Cart>;
   removeFromCart: (lineId: string) => Promise<void>;
   updateQuantity: (lineId: string, quantity: number) => Promise<void>;
   checkout: () => void;
@@ -76,13 +76,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addToCart = useCallback(
-    async (merchandiseId: string, quantity = 1) => {
+    async (merchandiseId: string, quantity = 1, openCartAfter = true) => {
       setIsLoading(true);
       try {
         let updatedCart: Cart;
 
         if (cart?.id) {
-          // Check if this variant already exists in cart
           const existingLine = cart.lines.edges
             .map((e) => e.node)
             .find((line) => line.merchandise.id === merchandiseId);
@@ -105,7 +104,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         setCart(updatedCart);
-        setIsOpen(true);
+        if (openCartAfter) setIsOpen(true);
+        return updatedCart;
       } finally {
         setIsLoading(false);
       }
