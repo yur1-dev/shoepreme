@@ -36,15 +36,28 @@ export const authConfig = {
   },
   providers: [], // filled in by auth.ts
   trustHost: true,
-  cookies: {
-    sessionToken: {
-      name: `__Secure-authjs.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
+  // cookies: {
+  //   sessionToken: {
+  //     name: `__Secure-authjs.session-token`,
+  //     options: {
+  //       httpOnly: true,
+  //       sameSite: "lax",
+  //       path: "/",
+  //       secure: true,
+  //     },
+  //   },
+  // },
+  ...(process.env.NODE_ENV === "production" && {
+    cookies: {
+      sessionToken: {
+        name: `__Secure-authjs.session-token`,
+        options: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: true,
+        },
       },
     },
-  },
+  }),
 } satisfies NextAuthConfig;
