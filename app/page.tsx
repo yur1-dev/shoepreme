@@ -9,6 +9,8 @@ import { getAllProducts } from "@/lib/shopify";
 import { connectToDatabase } from "@/lib/mongodb";
 import HeroSlide from "@/models/HeroSlide";
 
+export const dynamic = "force-dynamic";
+
 async function getHeroSlides(): Promise<HeroProduct[]> {
   await connectToDatabase();
   const slides = await HeroSlide.find({ active: true })
