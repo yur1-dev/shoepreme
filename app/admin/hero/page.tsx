@@ -402,12 +402,41 @@ function SlideModal({
             }}
           >
             <div>
-              <FieldLabel>Glow (RGB, comma-separated)</FieldLabel>
-              <TextInput
-                value={draft.glow}
-                onChange={(v) => upd("glow", v)}
-                placeholder="45,212,191"
-              />
+              <FieldLabel>Glow Color</FieldLabel>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="color"
+                  value={`#${draft.glow
+                    .split(",")
+                    .map((v) =>
+                      parseInt(v.trim()).toString(16).padStart(2, "0"),
+                    )
+                    .join("")}`}
+                  onChange={(e) => {
+                    const hex = e.target.value;
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    upd("glow", `${r},${g},${b}`);
+                  }}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "transparent",
+                    padding: 0,
+                    cursor: "pointer",
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    value={draft.glow}
+                    onChange={(v) => upd("glow", v)}
+                    placeholder="45,212,191"
+                  />
+                </div>
+              </div>
             </div>
             <div>
               <FieldLabel>Tag Color</FieldLabel>
