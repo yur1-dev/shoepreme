@@ -5,7 +5,9 @@ export async function GET() {
   const session = await auth();
   const idToken = (session as any)?.shopifyIdToken;
   const domain = process.env.SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN;
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL 
+  ? `https://${process.env.VERCEL_URL}` 
+  : "http://localhost:3000";
 
   // Sign out of Next.js session first
   await signOut({ redirect: false });
